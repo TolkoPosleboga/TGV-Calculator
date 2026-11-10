@@ -38,7 +38,30 @@ document.addEventListener('input', (e) => {
 function clearAll() {
     if (confirm("Вы уверены, что хотите очистить все поля?")) {
         localStorage.removeItem('calc_saved_data');
-        window.location.href = window.location.pathname;
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        document.querySelectorAll('input, select').forEach(el => {
+            if (el.type === 'checkbox') {
+                el.checked = false;
+            } else if (el.tagName === 'SELECT') {
+                el.selectedIndex = 0;
+            } else {
+                el.value = '';
+            }
+        });
+
+        document.getElementById('vent-results').style.display = 'none';
+        document.getElementById('heat-results').style.display = 'none';
+        document.getElementById('gas-results').style.display = 'none';
+
+        document.getElementById('v-dashboard').innerHTML = '';
+        document.getElementById('h-dashboard').innerHTML = '';
+        document.getElementById('g-dashboard').innerHTML = '';
+        document.getElementById('v-catalog').innerHTML = '';
+        document.getElementById('h-catalog').innerHTML = '';
+        document.getElementById('g-alerts').innerHTML = '';
+        document.getElementById('g-city-info').innerHTML = '';
+        document.getElementById('g-safety-card').style.display = 'none';
     }
 }
 
@@ -101,7 +124,9 @@ async function downloadFile(category, format) {
         combustion_chamber: "Камера сгорания", chimney_height: "Высота дымохода (м)",
         t_supply: "Подача (°C)", t_return: "Обратка (°C)", connection_type: "Схема подключения",
         pipe_length: "Длина трубы (м)", local_zeta: "Сумма местных сопр.",
-        uf_area: "Площадь теплого пола (м²)", uf_spacing: "Шаг укладки (мм)"
+        uf_area: "Площадь теплого пола (м²)", uf_spacing: "Шаг укладки (мм)",
+        recup_efficiency: "КПД рекуператора (%)", electricity_tariff: "Тариф (руб/кВт*ч)", season_days: "Длит. сезона (дней)",
+        pipe_velocity: "Скорость воды (м/с)"
     };
 
     let translatedReq = {};
@@ -131,6 +156,10 @@ async function downloadFile(category, format) {
             "Потери (Па)": resData.pressure_loss.total_loss_pa,
             "Нагрев (кВт)": resData.equipment.heater_power_kw
         };
+        if (resData.recuperation && resData.recuperation.q_saved_kw > 0) {
+            cleanResData["Экономия энергии (кВт*ч)"] = resData.recuperation.energy_saved_kwh;
+            cleanResData["Экономия денег (руб)"] = resData.recuperation.money_saved_rub;
+        }
     } else if (category === 'heat') {
         categoryName = "Отопление";
         cleanResData = {
@@ -143,6 +172,10 @@ async function downloadFile(category, format) {
         if (resData.underfloor_results) {
             cleanResData["Труба теплого пола (м)"] = resData.underfloor_results.total_pipe_length;
             cleanResData["Кол-во контуров (шт)"] = resData.underfloor_results.num_loops;
+        }
+        if (resData.hydraulics) {
+            cleanResData["Диаметр труб (Ду)"] = "Ду" + resData.hydraulics.selected_d_mm + " мм";
+            cleanResData["Объем бака (л)"] = resData.hydraulics.tank_volume_l;
         }
     } else if (category === 'gas') {
         categoryName = "Газоснабжение";
@@ -184,7 +217,10 @@ async function calcVent() {
         height: parseFloat(document.getElementById('v_height').value), people: parseInt(document.getElementById('v_people').value),
         heat_gain_kw: parseFloat(document.getElementById('v_heat').value), t_inside: parseFloat(document.getElementById('v_t_in').value),
         t_outside: parseFloat(document.getElementById('v_t_out').value), room_type: document.getElementById('v_room_type').value,
-        duct_length: parseFloat(document.getElementById('v_duct_len').value), duct_shape: document.getElementById('v_duct_shape').value
+        duct_length: parseFloat(document.getElementById('v_duct_len').value), duct_shape: document.getElementById('v_duct_shape').value,
+        recup_efficiency: parseFloat(document.getElementById('v_recup_eff').value) || 0,
+        electricity_tariff: parseFloat(document.getElementById('v_tariff').value) || 5.5,
+        season_days: parseInt(document.getElementById('v_season_days').value) || 210
     };
     lastData.vent = data;
 
@@ -193,12 +229,36 @@ async function calcVent() {
         if (!resp.ok) throw new Error('Ошибка сервера');
         const r = await resp.json(); lastResp.vent = r;
 
+        let recupHtml = '';
+        if (r.recuperation && r.recuperation.q_saved_kw > 0) {
+            recupHtml = `
+                <div class="result-box" style="background: #f0fdf4; border-color: #22c55e;">
+                    <h4 style="color: #166534;">Экономия на отоплении</h4>
+                    <div class="value" style="color: #166534;">${r.recuperation.money_saved_rub.toLocaleString('ru-RU')} <span class="unit">руб/сезон</span></div>
+                </div>
+            `;
+        }
+
         document.getElementById('v-dashboard').innerHTML = `
             <div class="result-box"><h4>Расход воздуха</h4><div class="value">${r.air_exchange.L_max_m3h} <span class="unit">м³/ч</span></div></div>
             <div class="result-box"><h4>Сечение</h4><div class="value">${r.duct.shape === 'round' ? r.duct.diameter_mm : r.duct.width_mm+'×'+r.duct.height_mm} <span class="unit">мм</span></div></div>
             <div class="result-box"><h4>Потери</h4><div class="value">${r.pressure_loss.total_loss_pa} <span class="unit">Па</span></div></div>
             <div class="result-box"><h4>Нагрев</h4><div class="value">${r.equipment.heater_power_kw} <span class="unit">кВт</span></div></div>
+            ${recupHtml}
         `;
+
+        let recupMethodology = '';
+        if (r.recuperation && r.recuperation.q_saved_kw > 0) {
+            let frostWarn = r.recuperation.frost_warning ? `<div class="warn-box" style="margin-top:10px;">⚠️ ${r.recuperation.frost_warning}</div>` : '';
+            recupMethodology = `
+                <div class="formula-block" style="background: #f0fdf4; border-left-color: #22c55e;">
+                    <b>7. Рекуперация:</b> Q_экон = L × ρ × c × Δt × КПД / 3600 = ${data.length} × 1.2 × 1.005 × ${r.air_exchange.delta_t} × ${(data.recup_efficiency/100).toFixed(2)} / 3600 = <b>${r.recuperation.q_saved_kw} кВт</b><br>
+                    Энергия за сезон = ${r.recuperation.q_saved_kw} кВт × ${data.season_days} дней × 24 ч = <b>${r.recuperation.energy_saved_kwh} кВт*ч</b><br>
+                    Экономия денег = ${r.recuperation.energy_saved_kwh} кВт*ч × ${data.electricity_tariff} руб = <b>${r.recuperation.money_saved_rub} руб.</b>
+                    ${frostWarn}
+                </div>
+            `;
+        }
 
         document.getElementById('v-methodology').innerHTML = `
             <div class="formula-block"><b>1. Расход по людям:</b> L_люди = N × L_норм = ${data.people} × ${(r.air_exchange.L_people_m3h / data.people).toFixed(1)} = <b>${r.air_exchange.L_people_m3h} м³/ч</b><span class="norm-ref">СП 60.13330.2020, табл. В.1</span></div>
@@ -207,6 +267,7 @@ async function calcVent() {
             <div class="formula-block" style="background: #eff6ff; border-left-color: #2563eb;"><b>4. Итоговый расход:</b> L_итог = max(L_люди, L_крат, L_тепло) = <b>${r.air_exchange.L_max_m3h} м³/ч</b></div>
             <div class="formula-block"><b>5. Диаметр:</b> D = √(4 × L / (3600 × π × v)) → принят <b>${r.duct.shape === 'round' ? r.duct.diameter_mm + ' мм' : r.duct.width_mm + '×' + r.duct.height_mm + ' мм'}</b><span class="norm-ref">ГОСТ Р 70349-2022 (v=5 м/с)</span></div>
             <div class="formula-block"><b>6. Потери:</b> ΔP = ${r.pressure_loss.friction_loss_pa} + ${r.pressure_loss.local_loss_pa} + 230 = <b>${r.pressure_loss.total_loss_pa} Па</b> (с запасом 15%)</div>
+            ${recupMethodology}
         `;
 
         document.getElementById('v-report').textContent = r.report;
@@ -220,11 +281,12 @@ async function calcVent() {
             fan: `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>`,
             duct: `<svg viewBox="0 0 24 24"><path d="M3 3h18v18h-4V7H3V3z"/></svg>`,
             heater: `<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 7h10v2H7V7zm0 4h10v2H7v-2zm0 4h10v2H7v-2z"/></svg>`,
-            filter: `<svg viewBox="0 0 24 24"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h4v4H7V7zm6 0h4v4h-4V7zm-6 6h4v4H7v-4zm6 0h4v4h-4v-4z"/></svg>`
+            filter: `<svg viewBox="0 0 24 24"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h4v4H7V7zm6 0h4v4h-4V7zm-6 6h4v4H7v-4zm6 0h4v4h-4v-4z"/></svg>`,
+            recuperator: `<svg viewBox="0 0 24 24"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm6 9.09c0 4-2.55 7.7-6 8.83-3.45-1.13-6-4.82-6-8.83V6.3l6-2.25 6 2.25v4.79z"/></svg>`
         };
-        const names = { unit: "Приточные установки", fan: "Вентиляторы", duct: "Воздуховоды", heater: "Калориферы", filter: "Фильтры" };
+        const names = { unit: "Приточные установки", fan: "Вентиляторы", duct: "Воздуховоды", heater: "Калориферы", filter: "Фильтры", recuperator: "Рекуператоры" };
 
-        ["unit", "fan", "duct", "heater", "filter"].forEach(c => {
+        ["unit", "fan", "duct", "heater", "filter", "recuperator"].forEach(c => {
             if (!grouped[c]) return;
             grouped[c].sort((a, b) => a.price_rub - b.price_rub);
             const min = grouped[c][0].price_rub;
@@ -258,6 +320,10 @@ async function calcHeat() {
     resContainer.style.display = 'block';
     document.getElementById('h-dashboard').innerHTML = '<p>Расчёт...</p>';
 
+    let velRaw = document.getElementById('h_pipe_velocity').value.replace(',', '.');
+    let velocity = parseFloat(velRaw);
+    if (isNaN(velocity) || velocity <= 0) velocity = 0.6;
+
     const data = {
         t_outside: parseFloat(document.getElementById('h_city').value), t_inside: parseFloat(document.getElementById('h_t_in').value),
         wall_area: parseFloat(document.getElementById('h_wall_area').value), wall_mat: document.getElementById('h_wall_mat').value,
@@ -268,47 +334,67 @@ async function calcHeat() {
         t_supply: parseFloat(document.getElementById('h_t_supply').value), t_return: parseFloat(document.getElementById('h_t_return').value),
         connection_type: document.getElementById('h_connection_type').value,
         uf_area: parseFloat(document.getElementById('h_uf_area').value) || 0,
-        uf_spacing: parseFloat(document.getElementById('h_uf_spacing').value) || 150
+        uf_spacing: parseFloat(document.getElementById('h_uf_spacing').value) || 150,
+        pipe_velocity: velocity
     };
     lastData.heat = data;
 
     try {
         const resp = await fetch('/api/heating/calculate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-        if (!resp.ok) throw new Error('Ошибка сервера');
+
+        if (!resp.ok) {
+            const errData = await resp.json();
+            throw new Error(errData.detail || 'Ошибка сервера');
+        }
+
         const r = await resp.json(); currentHeatData = r; lastResp.heat = r;
 
         const res = r.results;
         const corr = r.radiator_correction;
         const uf = r.underfloor_results;
+        const hydr = r.hydraulics;
 
         let ufHtml = '';
         if (uf) {
             ufHtml = `
                 <div class="result-box" style="background: #eff6ff; border-color: #bfdbfe;"><h4>Труба теплого пола</h4><div class="value">${uf.total_pipe_length} <span class="unit">м</span></div></div>
                 <div class="result-box" style="background: #eff6ff; border-color: #bfdbfe;"><h4>Контуров (петель)</h4><div class="value">${uf.num_loops} <span class="unit">шт</span></div></div>
-                <div class="result-box" style="background: #eff6ff; border-color: #bfdbfe;"><h4>Расход воды</h4><div class="value">${uf.flow_l_min} <span class="unit">л/мин</span></div></div>
             `;
         }
 
         document.getElementById('h-dashboard').innerHTML = `
             <div class="result-box"><h4>Теплопотери стен</h4><div class="value">${res.q_wall_w.toLocaleString('ru-RU')} <span class="unit">Вт</span></div></div>
-            <div class="result-box"><h4>Теплопотери окон</h4><div class="value">${res.q_window_w.toLocaleString('ru-RU')} <span class="unit">Вт</span></div></div>
             <div class="result-box"><h4>Общие с инфильтрацией</h4><div class="value">${res.total_with_infiltration_w.toLocaleString('ru-RU')} <span class="unit">Вт</span></div></div>
             <div class="result-box" style="background: var(--success-bg); border-color: var(--success-border);">
                 <h4 style="color: var(--success);">Мощность котла</h4>
                 <div class="value" style="color: var(--success);">${res.boiler_power_kw} <span class="unit">кВт</span></div>
             </div>
+            <div class="result-box" style="background: #fdf4ff; border-color: #f0abfc;">
+                <h4 style="color: #86198f;">Гидравлика (Труба)</h4>
+                <div class="value" style="color: #86198f;">Ду${hydr.selected_d_mm} <span class="unit">мм</span></div>
+            </div>
+            <div class="result-box" style="background: #fdf4ff; border-color: #f0abfc;">
+                <h4 style="color: #86198f;">Бак расширительный</h4>
+                <div class="value" style="color: #86198f;">${hydr.tank_volume_l} <span class="unit">л</span></div>
+            </div>
             ${ufHtml}
+        `;
+
+        let hydrMethodology = `
+            <div class="formula-block" style="background: #fdf4ff; border-left-color: #d946ef;">
+                <b>10. Гидравлика отопления:</b><br>
+                Расход: G = Q / (c × Δt) = ${res.total_with_infiltration_w} / (4180 × ${data.t_supply - data.t_return}) = <b>${hydr.flow_m3h} м³/ч</b><br>
+                Диаметр трубы: D = √(4 × F / π) при скорости ${data.pipe_velocity} м/с → принят <b>Ду${hydr.selected_d_mm} мм</b><br>
+                Объем расширительного бака: <b>${hydr.tank_volume_l} л</b>
+                <span class="norm-ref">СП 60.13330.2020, СП 41-102-98</span>
+            </div>
         `;
 
         let ufMethodology = '';
         if (uf) {
             ufMethodology = `
                 <div class="formula-block" style="background: #f0fdf4; border-left-color: #22c55e;">
-                    <b>10. Тёплый пол:</b> Длина трубы = Площадь × (1000 / Шаг) × 1.1 = ${data.uf_area} × (1000 / ${data.uf_spacing}) × 1.1 = <b>${uf.total_pipe_length} м</b>.<br>
-                    Количество контуров (макс. 80 м на петлю) = ${uf.total_pipe_length} / 80 = <b>${uf.num_loops} шт</b>.<br>
-                    Расход воды = (Q_пола × 3.6) / (4.18 × 1000 × Δt) = <b>${uf.flow_l_min} л/мин</b>.
-                    <span class="norm-ref">СП 60.13330.2020, рекомендации производителей труб</span>
+                    <b>11. Тёплый пол:</b> Длина трубы = <b>${uf.total_pipe_length} м</b>, Контуров = <b>${uf.num_loops} шт</b>.
                 </div>
             `;
         }
@@ -317,15 +403,14 @@ async function calcHeat() {
             <div class="formula-block"><b>1. Сопротивление стены:</b> R = <b>${res.r_wall} (м²·°С)/Вт</b></div>
             <div class="formula-block"><b>2. Теплопотери стен:</b> Q_стен = <b>${res.q_wall_w} Вт</b></div>
             <div class="formula-block"><b>3. Теплопотери окон:</b> Q_окон = <b>${res.q_window_w} Вт</b></div>
-            <div class="formula-block"><b>4-5. Теплопотери крыши и пола:</b> Q_крыши = ${res.q_roof_w} Вт, Q_пола = ${res.q_floor_w} Вт</div>
             <div class="formula-block" style="background: #eff6ff; border-left-color: #2563eb;">
-                <b>6. Суммарные потери:</b> Q_сум = <b>${res.total_loss_w} Вт</b><br>
-                <b>7. С учетом инфильтрации (+10%):</b> Q_инф = <b>${res.total_with_infiltration_w} Вт</b><br>
-                <b>8. Мощность котла (+15%):</b> Q_котла = <b>${res.boiler_power_kw} кВт</b>
+                <b>4. Суммарные потери:</b> Q_сум = <b>${res.total_loss_w} Вт</b><br>
+                <b>5. Мощность котла (+15%):</b> Q_котла = <b>${res.boiler_power_kw} кВт</b>
             </div>
             <div class="formula-block" style="background: #fffbeb; border-left-color: #f59e0b;">
-                <b>9. Поправка на радиаторы:</b> Δt = ${corr.dt_actual} °C. Коэф. = <b>${corr.power_factor.toFixed(2)}</b>.
+                <b>6. Поправка на радиаторы:</b> Δt = ${corr.dt_actual} °C. Коэф. = <b>${corr.power_factor.toFixed(2)}</b>.
             </div>
+            ${hydrMethodology}
             ${ufMethodology}
         `;
 
@@ -343,27 +428,27 @@ function renderHeatCatalog() {
     else if (sortType === 'price_desc') items.sort((a, b) => b.price_rub - a.price_rub);
     else if (sortType === 'brand') items.sort((a, b) => a.brand.localeCompare(b.brand));
 
-    const grouped = { boiler: [], radiator: [] };
+    const grouped = { boiler: [], radiator: [], pump: [] };
     items.forEach(s => { if (grouped[s.category]) grouped[s.category].push(s); });
 
     const icons = {
         boiler: `<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM9 7h6v10H9V7z"/></svg>`,
-        radiator: `<svg viewBox="0 0 24 24"><path d="M4 6h16v12H4V6zm2 2v8h12V8H6zm2 2h2v4H8v-4zm4 0h2v4h-2v-4zm4 0h2v4h-2v-4z"/></svg>`
+        radiator: `<svg viewBox="0 0 24 24"><path d="M4 6h16v12H4V6zm2 2v8h12V8H6zm2 2h2v4H8v-4zm4 0h2v4h-2v-4zm4 0h2v4h-2v-4z"/></svg>`,
+        pump: `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>`
     };
-    const names = { boiler: "Газовые котлы", radiator: "Радиаторы отопления" };
+    const names = { boiler: "Газовые котлы", radiator: "Радиаторы отопления", pump: "Циркуляционные насосы" };
 
     catalog.innerHTML = '';
-    ['boiler', 'radiator'].forEach(cat => {
+    ['boiler', 'radiator', 'pump'].forEach(cat => {
         if (!grouped[cat] || grouped[cat].length === 0) return;
         const minPrice = Math.min(...grouped[cat].map(i => i.price_rub));
         catalog.innerHTML += `<div class="category-header">${icons[cat]} <h3>${names[cat]}</h3></div><div class="solutions-grid" id="grid-heat-${cat}"></div>`;
         const grid = document.getElementById(`grid-heat-${cat}`);
         grouped[cat].forEach(s => {
             const isBest = s.price_rub === minPrice;
-            let specText = `Мощность: ${s.power_kw} кВт`;
-            if (s.category === 'radiator') {
-                specText = `Мощность: ${s.power_kw} кВт (паспорт) / ${(s.power_kw * currentHeatData.radiator_correction.power_factor).toFixed(1)} кВт (реал)`;
-            }
+            let specText = s.category === 'pump' ? `Расход: до 3.5 м³/ч` : `Мощность: ${s.power_kw} кВт`;
+            if (s.category === 'radiator') specText = `Мощность: ${s.power_kw} кВт (паспорт) / ${(s.power_kw * currentHeatData.radiator_correction.power_factor).toFixed(1)} кВт (реал)`;
+
             grid.innerHTML += `
                 <div class="sol-card ${isBest ? 'best-choice' : ''}">
                     ${isBest ? '<div class="best-badge">Выгодный выбор</div>' : ''}
@@ -386,11 +471,11 @@ async function calcGas() {
     resContainer.style.display = 'block';
     document.getElementById('g-dashboard').innerHTML = '<p>Расчёт...</p>';
 
-    const length = parseFloat(document.querySelector('.sync-length').value) || 10;
-    const width = parseFloat(document.querySelector('.sync-width').value) || 6;
-    const height = parseFloat(document.getElementById('g_room_height').value) || 3;
+    const length = parseFloat(document.querySelector('.sync-length').value) || 0;
+    const width = parseFloat(document.querySelector('.sync-width').value) || 0;
+    const height = parseFloat(document.getElementById('g_room_height').value) || 0;
     const volume = length * width * height;
-    document.getElementById('g_room_volume').value = volume;
+    document.getElementById('g_room_volume').value = volume > 0 ? volume : '';
 
     const data = {
         city_id: document.getElementById('g_city').value, boiler_power_kw: parseFloat(document.getElementById('g_boiler_power').value),
@@ -409,7 +494,6 @@ async function calcGas() {
 
         const res = r.results; const city = r.city_info;
 
-        // Вывод предупреждений
         const alerts = document.getElementById('g-alerts'); alerts.innerHTML = '';
         if (res.chimney_warning) alerts.innerHTML += `<div class="warn-box">⚠️ <b>Дымоход:</b> ${res.chimney_warning}</div>`;
         if (res.velocity_warning) alerts.innerHTML += `<div class="warn-box">⚠️ <b>Гидравлика:</b> ${res.velocity_warning}</div>`;
@@ -434,7 +518,6 @@ async function calcGas() {
             <div class="result-box"><h4>Дымоход</h4><div class="value">${res.d_chimney_mm > 0 ? res.d_chimney_mm : 'Коаксиальный'} <span class="unit">${res.d_chimney_mm > 0 ? 'мм' : ''}</span></div></div>
         `;
 
-        // Отрисовка блока безопасности
         const safetyCard = document.getElementById('g-safety-card');
         const safetyGrid = document.getElementById('g-safety-grid');
         if (res.safety_items && res.safety_items.length > 0) {

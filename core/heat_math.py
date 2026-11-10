@@ -6,10 +6,7 @@ from catalogs.catalog_heat import EQUIPMENT_CATALOG_HEAT, HeatingSolution
 ALPHA_INT = 8.7
 ALPHA_EXT = 23.0
 
-WALL_MATERIALS = {
-    "brick_solid": 0.56, "brick_hollow": 0.35, "aerated_d400": 0.12,
-    "aerated_d600": 0.20, "wood": 0.15
-}
+WALL_MATERIALS = {"brick_solid": 0.56, "brick_hollow": 0.35, "aerated_d400": 0.12, "aerated_d600": 0.20, "wood": 0.15}
 INSULATION_MATERIALS = {"none": 0.0, "minwool": 0.040, "penoplex": 0.030}
 WINDOW_TYPES = {"single_chamber": 0.32, "double_chamber": 0.45, "triple_chamber": 0.55}
 
@@ -66,49 +63,49 @@ def apply_connection_factor(power_factor: float, connection_type: str) -> float:
     return power_factor * factors.get(connection_type, 1.0)
 
 
-def find_heat_equipment(power_kw: float, rad_factor: float) -> List[HeatingSolution]:
-    matched = []
-    for item in EQUIPMENT_CATALOG_HEAT:
-        if item.category == "boiler" and item.power_kw >= power_kw * 0.95:
-            matched.append(item)
-        elif item.category == "radiator" and item.power_kw * rad_factor >= 1.0:
-            matched.append(item)
-    return matched
+def calculate_hydraulics(power_w: float, t_supply: float, t_return: float, velocity: float = 0.6) -> Dict[str, Any]:
+    dt = t_supply - t_return
+    if dt <= 0:
+        return {"error": "Температура подачи должна быть выше обратки"}
+    if velocity <= 0:
+        velocity = 0.6  # Защита от нуля
+
+    flow_m3h = (power_w * 3.6) / (4.18 * 1000 * dt)
+    area_req_m2 = (flow_m3h / 3600.0) / velocity
+    d_req_mm = math.sqrt(4 * area_req_m2 / math.pi) * 1000
+
+    std_diameters = [15, 20, 25, 32, 40, 50]
+    selected_d = next((d for d in std_diameters if d >= d_req_mm), std_diameters[-1])
+
+    system_volume_l = (power_w / 1000.0) * 15
+    tank_volume_l = system_volume_l * 0.1 * 1.5
+
+    return {
+        "flow_m3h": round(flow_m3h, 2),
+        "d_req_mm": round(d_req_mm, 1),
+        "selected_d_mm": selected_d,
+        "system_volume_l": round(system_volume_l, 0),
+        "tank_volume_l": round(tank_volume_l, 0)
+    }
 
 
-# --- НОВАЯ ФУНКЦИЯ: РАСЧЕТ ТЕПЛОГО ПОЛА ---
 def calculate_underfloor_heating(area_m2: float, spacing_mm: float, heat_loss_w: float, t_supply: float,
                                  t_return: float) -> Dict[str, Any]:
     if area_m2 <= 0 or spacing_mm <= 0:
         return {"error": "Площадь и шаг должны быть больше нуля"}
 
-    # 1. Расчет длины трубы
-    # На 1 м² при шаге 150 мм нужно 1000/150 = 6.67 метров трубы.
     pipe_per_m2 = 1000.0 / spacing_mm
-    # Добавляем 10% на повороты и подводку к коллектору (примерно)
     total_pipe_length = area_m2 * pipe_per_m2 * 1.1
-
-    # 2. Количество контуров (петель)
-    # По нормам, длина одной петли не должна превышать 80-100 м (иначе насос не продавит).
-    # Берем максимум 80 метров на петлю.
     max_loop_length = 80.0
     num_loops = math.ceil(total_pipe_length / max_loop_length)
     if num_loops == 0: num_loops = 1
 
-    # 3. Расход воды
-    # Q = G * c * dt  => G = Q / (c * dt)
-    # c = 4.18 кДж/кг*С, плотность воды 1000 кг/м3
     delta_t = t_supply - t_return
     if delta_t <= 0:
         return {"error": "Температура подачи должна быть выше обратки"}
 
-    # Расход в м3/ч = (Q_вт * 3.6) / (4.18 * 1000 * dt)
     flow_m3h = (heat_loss_w * 3.6) / (4.18 * 1000 * delta_t)
     flow_l_min = flow_m3h * 1000 / 60.0
-
-    # 4. Подбор коллектора (по количеству выходов)
-    # Округляем до стандартных значений (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
-    collector_outputs = max(2, num_loops)
 
     return {
         "total_pipe_length": round(total_pipe_length, 1),
@@ -116,11 +113,27 @@ def calculate_underfloor_heating(area_m2: float, spacing_mm: float, heat_loss_w:
         "loop_length": round(total_pipe_length / num_loops, 1),
         "flow_m3h": round(flow_m3h, 2),
         "flow_l_min": round(flow_l_min, 1),
-        "collector_outputs": collector_outputs
+        "collector_outputs": max(2, num_loops)
     }
 
 
-def generate_heat_report(city_name: str, res: Dict, wall_mat: str, insul_mat: str, win_type: str) -> str:
+def find_heat_equipment(power_kw: float, rad_factor: float) -> List[HeatingSolution]:
+    matched = []
+    for item in EQUIPMENT_CATALOG_HEAT:
+        if item.category == "boiler" and item.power_kw >= power_kw * 0.95:
+            matched.append(item)
+        elif item.category == "radiator" and item.power_kw * rad_factor >= 1.0:
+            matched.append(item)
+        elif item.category == "pump":
+            matched.append(item)
+    return matched
+
+
+def generate_heat_report(city_name: str, res: Dict, hydr: Dict, wall_mat: str, insul_mat: str, win_type: str) -> str:
+    flow = hydr.get("flow_m3h", 0)
+    d_mm = hydr.get("selected_d_mm", 0)
+    tank = hydr.get("tank_volume_l", 0)
+
     lines = [
         "=" * 60, "ОТЧЁТ ПО ТЕПЛОТЕХНИЧЕСКОМУ РАСЧЁТУ", "=" * 60,
         f"Температура внутри: {res.get('delta_t', 0) + 0} °C (ΔT = {res['delta_t']} °C)", "",
@@ -130,6 +143,10 @@ def generate_heat_report(city_name: str, res: Dict, wall_mat: str, insul_mat: st
         f"Потери через крышу: {res['q_roof_w']} Вт", f"Потери через пол: {res['q_floor_w']} Вт",
         f"Суммарные трансмиссионные потери: {res['total_loss_w']} Вт",
         f"С учётом инфильтрации (+10%): {res['total_with_infiltration_w']} Вт", "",
+        "-" * 40, "ГИДРАВЛИКА", "-" * 40,
+        f"Расход теплоносителя: {flow} м³/ч",
+        f"Рекомендуемый диаметр труб (внутр.): Ду{d_mm} мм",
+        f"Объем расширительного бака: {tank} литров", "",
         "-" * 40, "ПОДБОР ОБОРУДОВАНИЯ", "-" * 40,
         f"Требуемая мощность котла (+15%): {res['boiler_power_kw']} кВт", "=" * 60,
     ]

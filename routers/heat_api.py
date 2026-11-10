@@ -24,17 +24,17 @@ class HeatRequest(BaseModel):
     t_supply: float = Field(..., description="Температура подачи, °C")
     t_return: float = Field(..., description="Температура обратки, °C")
     connection_type: str = Field(..., description="Схема подключения")
-
-    # НОВЫЕ ПОЛЯ ДЛЯ ТЕПЛОГО ПОЛА
     uf_area: float = Field(..., ge=0, description="Площадь теплого пола, м²")
     uf_spacing: float = Field(..., ge=0, description="Шаг укладки, мм")
+    pipe_velocity: float = Field(0.6, description="Скорость теплоносителя, м/с")
 
 
 class HeatResponse(BaseModel):
     results: Dict[str, Any]
     solutions: List[HeatingSolution]
     radiator_correction: Dict[str, Any]
-    underfloor_results: Optional[Dict[str, Any]] = None  # <-- ДОБАВИЛИ
+    underfloor_results: Optional[Dict[str, Any]] = None
+    hydraulics: Optional[Dict[str, Any]] = None
     report: str
 
 
@@ -55,23 +55,27 @@ async def calculate(request: HeatRequest):
         corr = heat_math.calculate_radiator_correction(request.t_supply, request.t_return, request.t_inside)
         corr["power_factor"] = heat_math.apply_connection_factor(corr["power_factor"], request.connection_type)
 
+        hydr = heat_math.calculate_hydraulics(res["total_with_infiltration_w"], request.t_supply, request.t_return,
+                                              request.pipe_velocity)
+        if "error" in hydr:
+            raise HTTPException(status_code=400, detail=hydr["error"])
+
         sols = heat_math.find_heat_equipment(res["boiler_power_kw"], corr["power_factor"])
 
-        # Расчет теплого пола, если задана площадь
         uf_res = None
         if request.uf_area > 0:
-            # Берем теплопотери пола как базовые для теплого пола
             uf_res = heat_math.calculate_underfloor_heating(
-                request.uf_area, request.uf_spacing,
-                res["q_floor_w"], request.t_supply, request.t_return
+                request.uf_area, request.uf_spacing, res["q_floor_w"], request.t_supply, request.t_return
             )
+            if uf_res and "error" in uf_res:
+                raise HTTPException(status_code=400, detail=uf_res["error"])
 
-        report = heat_math.generate_heat_report(f"{request.t_outside}°C", res, request.wall_mat, request.insul_mat,
-                                                request.window_type)
+        report = heat_math.generate_heat_report(f"{request.t_outside}°C", res, hydr, request.wall_mat,
+                                                request.insul_mat, request.window_type)
 
         return HeatResponse(
             results=res, solutions=sols, radiator_correction=corr,
-            underfloor_results=uf_res, report=report
+            underfloor_results=uf_res, hydraulics=hydr, report=report
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

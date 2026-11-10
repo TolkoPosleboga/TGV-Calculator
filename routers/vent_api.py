@@ -1,7 +1,7 @@
 # routers/vent_api.py
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import Literal, Dict, Any, List
+from typing import Literal, Dict, Any, List, Optional
 from core import vent_math
 from catalogs.catalog_vent import EquipmentSolution
 
@@ -19,6 +19,10 @@ class VentRequest(BaseModel):
     room_type: Literal["office", "classroom", "industrial", "residential"]
     duct_length: float = Field(..., gt=0)
     duct_shape: Literal["round", "rect"]
+    # НОВЫЕ ПОЛЯ
+    recup_efficiency: float = Field(..., ge=0, le=100, description="КПД рекуператора, %")
+    electricity_tariff: float = Field(..., ge=0, description="Тариф на электроэнергию, руб/кВт*ч")
+    season_days: int = Field(..., ge=0, description="Длительность отопительного сезона, дней")
 
 
 class VentResponse(BaseModel):
@@ -27,8 +31,9 @@ class VentResponse(BaseModel):
     pressure_loss: Dict[str, Any]
     equipment: Dict[str, Any]
     solutions: List[EquipmentSolution]
-    system_warning: str | None = None
-    report: str  # <-- ВОЗВРАЩАЕМ ПОЛЕ
+    system_warning: Optional[str] = None
+    recuperation: Optional[Dict[str, Any]] = None
+    report: str
 
 
 @router.post("/calculate", response_model=VentResponse)
@@ -42,13 +47,22 @@ async def calculate(request: VentRequest):
         equip = vent_math.select_equipment_base(air["L_max_m3h"], pressure, request.t_inside, request.t_outside)
         sols = vent_math.find_solutions(equip["fan_flow_m3h"], equip["fan_pressure_pa"], equip["heater_power_kw"])
 
-        report = vent_math.generate_vent_report(air, duct, pressure, equip)
+        # Расчет рекуперации
+        recup = None
+        if request.recup_efficiency > 0:
+            recup = vent_math.calculate_recuperation(
+                air["L_max_m3h"], request.t_inside, request.t_outside,
+                request.recup_efficiency, request.electricity_tariff, request.season_days
+            )
 
         warning = None
         if air["L_max_m3h"] > 50000:
             warning = "Требуемый расход превышает 50 000 м³/ч. Рекомендуется проектирование ЦПУ из секций."
 
-        return VentResponse(air_exchange=air, duct=duct, pressure_loss=pressure, equipment=equip, solutions=sols,
-                            system_warning=warning, report=report)
+        report = vent_math.generate_vent_report(air, duct, pressure, equip, recup)
+
+        return VentResponse(air_exchange=air, duct=duct, pressure_loss=pressure,
+                            equipment=equip, solutions=sols, system_warning=warning,
+                            recuperation=recup, report=report)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -49,6 +49,14 @@
                 <div class="form-group"><label>Длина трассы (м)</label><input type="number" step="0.1" id="v_duct_len" value="20"></div>
                 <div class="form-group"><label>Форма воздуховода</label><select id="v_duct_shape"><option value="round">Круглая</option><option value="rect">Прямоугольная</option></select></div>
             </div>
+
+            <div class="section-title">Рекуперация тепла (опционально)</div>
+            <div class="form-grid">
+                <div class="form-group"><label>КПД рекуператора (%)</label><input type="number" step="1" id="v_recup_eff" value="65"></div>
+                <div class="form-group"><label>Тариф (руб/кВт*ч)</label><input type="number" step="0.01" id="v_tariff" value="5.50"></div>
+                <div class="form-group"><label>Длит. сезона (дней)</label><input type="number" id="v_season_days" value="210"></div>
+            </div>
+
             <button class="btn" onclick="calcVent()">РАССЧИТАТЬ ВЕНТИЛЯЦИЮ</button>
         </div>
 
@@ -95,31 +103,18 @@
                 <div class="form-group"><label>Площадь пола (м²)</label><input type="number" id="h_floor_area" value="60"></div>
             </div>
 
-            <div class="section-title">Теплоноситель и радиаторы</div>
+            <div class="section-title">Теплоноситель и гидравлика</div>
             <div class="form-grid">
                 <div class="form-group"><label>Подача (°C)</label><input type="number" id="h_t_supply" value="90"></div>
                 <div class="form-group"><label>Обратка (°C)</label><input type="number" id="h_t_return" value="70"></div>
-                <div class="form-group"><label>Схема подключения</label>
-                    <select id="h_connection_type">
-                        <option value="side">Боковое (одностороннее)</option>
-                        <option value="diagonal">Диагональное</option>
-                        <option value="bottom">Нижнее</option>
-                    </select>
-                </div>
+                <div class="form-group"><label>Схема подключения</label><select id="h_connection_type"><option value="side">Боковое</option><option value="diagonal">Диагональное</option><option value="bottom">Нижнее</option></select></div>
+                <div class="form-group"><label>Скорость воды (м/с)</label><input type="number" step="0.1" id="h_pipe_velocity" value="0.6"></div>
             </div>
 
             <div class="section-title">Тёплый пол (опционально)</div>
             <div class="form-grid">
                 <div class="form-group"><label>Площадь пола (м²)</label><input type="number" id="h_uf_area" value="40"></div>
-                <div class="form-group"><label>Шаг укладки трубы (мм)</label>
-                    <select id="h_uf_spacing">
-                        <option value="100">100 мм</option>
-                        <option value="150" selected>150 мм</option>
-                        <option value="200">200 мм</option>
-                        <option value="250">250 мм</option>
-                        <option value="300">300 мм</option>
-                    </select>
-                </div>
+                <div class="form-group"><label>Шаг укладки трубы (мм)</label><select id="h_uf_spacing"><option value="100">100 мм</option><option value="150" selected>150 мм</option><option value="200">200 мм</option><option value="250">250 мм</option><option value="300">300 мм</option></select></div>
             </div>
 
             <button class="btn" onclick="calcHeat()">РАССЧИТАТЬ ТЕПЛОПОТЕРИ</button>
@@ -138,7 +133,7 @@
             </div>
             <div class="card">
                 <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>Подбор котлов и радиаторов</span>
+                    <span>Подбор котлов, радиаторов и насосов</span>
                     <div class="sort-container"><select id="h_sort" onchange="renderHeatCatalog()"><option value="price_asc">Сначала дешевые</option><option value="price_desc">Сначала дорогие</option><option value="brand">По бренду (А-Я)</option></select></div>
                 </div>
                 <div id="h-catalog"></div>
@@ -190,7 +185,6 @@
                 </div>
             </div>
 
-            <!-- НОВЫЙ БЛОК БЕЗОПАСНОСТИ -->
             <div class="card" id="g-safety-card" style="display: none;">
                 <div class="section-title" style="color: #dc2626; border-color: #dc2626;">Комплект безопасности (обязательно)</div>
                 <div id="g-safety-grid" class="solutions-grid"></div>
