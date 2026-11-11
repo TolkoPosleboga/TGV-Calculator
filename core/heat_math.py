@@ -10,7 +10,6 @@ WALL_MATERIALS = {"brick_solid": 0.56, "brick_hollow": 0.35, "aerated_d400": 0.1
 INSULATION_MATERIALS = {"none": 0.0, "minwool": 0.040, "penoplex": 0.030}
 WINDOW_TYPES = {"single_chamber": 0.32, "double_chamber": 0.45, "triple_chamber": 0.55}
 
-
 def calculate_heat_loss(
         city_temp: float, t_inside: float, wall_area: float, wall_mat: str, wall_thick: float,
         insul_mat: str, insul_thick: float, window_area: float, window_type: str,
@@ -28,8 +27,7 @@ def calculate_heat_loss(
     r_window = WINDOW_TYPES.get(window_type, 0.45)
     q_window = (window_area * delta_t / r_window) if r_window > 0 else 0
 
-    r_roof = (1 / ALPHA_INT) + (roof_insul / INSULATION_MATERIALS["minwool"]) + (
-                1 / ALPHA_EXT) if roof_insul > 0 else 3.0
+    r_roof = (1 / ALPHA_INT) + (roof_insul / INSULATION_MATERIALS["minwool"]) + (1 / ALPHA_EXT) if roof_insul > 0 else 3.0
     q_roof = (roof_area * delta_t / r_roof) if r_roof > 0 else 0
 
     r_floor = 3.0
@@ -48,7 +46,6 @@ def calculate_heat_loss(
         "boiler_power_kw": round(boiler_power_kw, 1)
     }
 
-
 def calculate_radiator_correction(t_supply: float, t_return: float, t_room: float) -> Dict[str, Any]:
     dt_nominal = (90 + 70) / 2 - 20
     dt_actual = (t_supply + t_return) / 2 - t_room
@@ -57,18 +54,16 @@ def calculate_radiator_correction(t_supply: float, t_return: float, t_room: floa
     power_factor = (dt_actual / dt_nominal) ** 1.3
     return {"power_factor": round(power_factor, 3), "dt_actual": round(dt_actual, 1), "warning": ""}
 
-
 def apply_connection_factor(power_factor: float, connection_type: str) -> float:
     factors = {"side": 1.0, "diagonal": 1.0, "bottom": 0.85, "bottom_diverted": 0.9}
     return power_factor * factors.get(connection_type, 1.0)
-
 
 def calculate_hydraulics(power_w: float, t_supply: float, t_return: float, velocity: float = 0.6) -> Dict[str, Any]:
     dt = t_supply - t_return
     if dt <= 0:
         return {"error": "Температура подачи должна быть выше обратки"}
     if velocity <= 0:
-        velocity = 0.6  # Защита от нуля
+        velocity = 0.6
 
     flow_m3h = (power_w * 3.6) / (4.18 * 1000 * dt)
     area_req_m2 = (flow_m3h / 3600.0) / velocity
@@ -87,7 +82,6 @@ def calculate_hydraulics(power_w: float, t_supply: float, t_return: float, veloc
         "system_volume_l": round(system_volume_l, 0),
         "tank_volume_l": round(tank_volume_l, 0)
     }
-
 
 def calculate_underfloor_heating(area_m2: float, spacing_mm: float, heat_loss_w: float, t_supply: float,
                                  t_return: float) -> Dict[str, Any]:
@@ -116,7 +110,6 @@ def calculate_underfloor_heating(area_m2: float, spacing_mm: float, heat_loss_w:
         "collector_outputs": max(2, num_loops)
     }
 
-
 def find_heat_equipment(power_kw: float, rad_factor: float) -> List[HeatingSolution]:
     matched = []
     for item in EQUIPMENT_CATALOG_HEAT:
@@ -127,7 +120,6 @@ def find_heat_equipment(power_kw: float, rad_factor: float) -> List[HeatingSolut
         elif item.category == "pump":
             matched.append(item)
     return matched
-
 
 def generate_heat_report(city_name: str, res: Dict, hydr: Dict, wall_mat: str, insul_mat: str, win_type: str) -> str:
     flow = hydr.get("flow_m3h", 0)

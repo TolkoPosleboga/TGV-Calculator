@@ -3,12 +3,18 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from routers import vent_api, heat_api, gas_api, export_api
+from db.database import init_db
+from routers import projects_api
+from routers import ifc_api
 import webbrowser
 import threading
 import uvicorn
 
-app = FastAPI(title="Инженерный калькулятор", version="6.0.0")
 
+app = FastAPI(title="Инженерный калькулятор", version="6.0.0")
+@app.on_event("startup")
+def startup_event():
+    init_db()
 # Подключаем статику (CSS, JS)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -17,6 +23,8 @@ app.include_router(vent_api.router)
 app.include_router(heat_api.router)
 app.include_router(gas_api.router)
 app.include_router(export_api.router)
+app.include_router(projects_api.router)
+app.include_router(ifc_api.router)
 
 @app.get("/")
 async def index():

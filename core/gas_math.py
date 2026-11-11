@@ -40,6 +40,7 @@ def calculate_gas_system(
     pipe_area = math.pi * d_inner_m ** 2 / 4.0
     velocity = v_total / 3600.0 / pipe_area
     Re = velocity * d_inner_m / GAS_VISCOSITY
+
     delta = 0.0001
     lambda_fr = 0.11 * ((delta / d_inner_m) + (68 / Re)) ** 0.25 if Re > 0 else 0
 
@@ -56,14 +57,17 @@ def calculate_gas_system(
     if combustion_chamber == "open":
         chimney_area = v_boiler / (3600 * 1.5)
         d_chimney_mm = math.sqrt(4 * chimney_area / math.pi) * 1000
-        if d_chimney_mm < 100: d_chimney_mm = 100
-        if chimney_height < 5: chimney_warning = "Высота дымохода менее 5 м недопустима по СП 7.13130!"
+        if d_chimney_mm < 100:
+            d_chimney_mm = 100
+        if chimney_height < 5:
+            chimney_warning = "Высота дымохода менее 5 м недопустима по СП 7.13130!"
     else:
         d_chimney_mm = 0
 
     # 5. Вентиляция
     v_exhaust = room_volume * 3
-    if has_stove and v_exhaust < 30: v_exhaust = 30
+    if has_stove and v_exhaust < 30:
+        v_exhaust = 30
     v_supply = v_exhaust + (v_total * 1.2)
 
     # 6. Проверка требований к котельной
@@ -90,6 +94,8 @@ def calculate_gas_system(
         "meter": selected_meter.model if selected_meter else "Требуется промышленный счётчик",
         "pipe": selected_pipe.model if selected_pipe else "Требуется расчет",
         "velocity": round(velocity, 2),
+        "p_friction": round(p_friction, 1),
+        "p_local": round(p_local, 1),
         "p_total": round(p_total, 1),
         "velocity_warning": velocity_warning,
         "d_chimney_mm": round(d_chimney_mm, 0),

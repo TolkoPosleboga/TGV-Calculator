@@ -1,11 +1,124 @@
 let currentHeatData = null;
 let lastData = { vent: null, heat: null, gas: null };
 let lastResp = { vent: null, heat: null, gas: null };
+let citiesData = [];
+
+// ==========================================
+// 0. СПРАВОЧНИК ГОРОДОВ И СИСТЕМА ВЬЮХОВ
+// ==========================================
+function switchView(viewId) {
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    const target = document.getElementById(viewId + '-view');
+    if (target) target.classList.add('active');
+
+    // Если переходим в BIM, подгружаем проекты
+    if (viewId === 'bim' && typeof loadProjects === 'function') {
+        loadProjects();
+    }
+}
+
+async function loadCities() {
+    try {
+        const resp = await fetch('/static/cities_climate.json');
+        citiesData = await resp.json();
+
+        initCitySearch('v_city_search', 'v_city_value', 'v_t_out');
+        initCitySearch('h_city_search', 'h_city_value', 'h_t_out');
+        initCitySearch('g_city_search', 'g_city_value', 'g_t_out');
+        initCitySearch('bim_city_search', 'bim_city_value', 'bim_t_out');
+    } catch (e) {
+        console.error('Не удалось загрузить справочник городов', e);
+    }
+}
+
+function initCitySearch(inputId, hiddenId, tempFieldId) {
+    const input = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+    if (!input || !hidden) return;
+
+    input.parentNode.style.position = 'relative';
+
+    let dropdown = document.createElement('div');
+    dropdown.className = 'city-dropdown';
+    input.parentNode.appendChild(dropdown);
+
+    input.addEventListener('input', () => {
+        const query = input.value.trim().toLowerCase();
+        dropdown.innerHTML = '';
+
+        if (query.length === 0) {
+            dropdown.style.display = 'none';
+            hidden.value = '';
+            return;
+        }
+
+        const filtered = citiesData.filter(c => c.name.toLowerCase().startsWith(query)).slice(0, 10);
+
+        if (filtered.length === 0) {
+            dropdown.style.display = 'none';
+            return;
+        }
+
+        filtered.forEach(city => {
+            const item = document.createElement('div');
+            item.className = 'city-dropdown-item';
+            item.textContent = `${city.name} (${city.temp}°C)`;
+            item.onclick = () => {
+                input.value = city.name;
+                hidden.value = city.temp;
+
+                if (tempFieldId) {
+                    const tempField = document.getElementById(tempFieldId);
+                    if (tempField) tempField.value = city.temp;
+                }
+
+                dropdown.style.display = 'none';
+                syncCityAcrossTabs(city.name, city.temp, input);
+            };
+            dropdown.appendChild(item);
+        });
+
+        dropdown.style.display = 'block';
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+}
+
+function syncCityAcrossTabs(name, temp, sourceInput) {
+    const syncToggle = document.getElementById('syncToggle');
+    if (!syncToggle || !syncToggle.checked) return;
+
+    const cityConfigs = [
+        { search: 'v_city_search', hidden: 'v_city_value', temp: 'v_t_out' },
+        { search: 'h_city_search', hidden: 'h_city_value', temp: 'h_t_out' },
+        { search: 'g_city_search', hidden: 'g_city_value', temp: 'g_t_out' },
+        { search: 'bim_city_search', hidden: 'bim_city_value', temp: 'bim_t_out' }
+    ];
+
+    cityConfigs.forEach(cfg => {
+        const searchEl = document.getElementById(cfg.search);
+        const hiddenEl = document.getElementById(cfg.hidden);
+        const tempEl = document.getElementById(cfg.temp);
+
+        if (searchEl && searchEl !== sourceInput) {
+            searchEl.value = name;
+            searchEl.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (hiddenEl && searchEl !== sourceInput) hiddenEl.value = temp;
+        if (tempEl && searchEl !== sourceInput) tempEl.value = temp;
+    });
+}
 
 // ==========================================
 // 1. АВТОСОХРАНЕНИЕ И ШАРИНГ
 // ==========================================
 window.addEventListener('load', () => {
+    loadCities();
+
     const savedData = localStorage.getItem('calc_saved_data');
     if (savedData) {
         const data = JSON.parse(savedData);
@@ -14,6 +127,7 @@ window.addEventListener('load', () => {
             if (el) el.value = data[id];
         }
     }
+
     const urlParams = new URLSearchParams(window.location.search);
     const sharedData = urlParams.get('data');
     if (sharedData) {
@@ -29,6 +143,7 @@ window.addEventListener('load', () => {
 
 document.addEventListener('input', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
+        if (e.target.readOnly) return;
         const savedData = JSON.parse(localStorage.getItem('calc_saved_data') || '{}');
         savedData[e.target.id] = e.target.value;
         localStorage.setItem('calc_saved_data', JSON.stringify(savedData));
@@ -41,27 +156,28 @@ function clearAll() {
         window.history.replaceState({}, document.title, window.location.pathname);
 
         document.querySelectorAll('input, select').forEach(el => {
-            if (el.type === 'checkbox') {
-                el.checked = false;
-            } else if (el.tagName === 'SELECT') {
-                el.selectedIndex = 0;
-            } else {
-                el.value = '';
-            }
+            if (el.type === 'checkbox') el.checked = false;
+            else if (el.tagName === 'SELECT') el.selectedIndex = 0;
+            else if (!el.readOnly) el.value = '';
         });
 
-        document.getElementById('vent-results').style.display = 'none';
-        document.getElementById('heat-results').style.display = 'none';
-        document.getElementById('gas-results').style.display = 'none';
+        ['vent-results', 'heat-results', 'gas-results'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = 'none';
+        });
 
-        document.getElementById('v-dashboard').innerHTML = '';
-        document.getElementById('h-dashboard').innerHTML = '';
-        document.getElementById('g-dashboard').innerHTML = '';
-        document.getElementById('v-catalog').innerHTML = '';
-        document.getElementById('h-catalog').innerHTML = '';
-        document.getElementById('g-alerts').innerHTML = '';
-        document.getElementById('g-city-info').innerHTML = '';
-        document.getElementById('g-safety-card').style.display = 'none';
+        ['v-dashboard', 'h-dashboard', 'g-dashboard', 'v-catalog', 'h-catalog', 'g-alerts', 'g-city-info'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.innerHTML = '';
+        });
+
+        const gSafetyCard = document.getElementById('g-safety-card');
+        if (gSafetyCard) gSafetyCard.style.display = 'none';
+
+        ['v_city_value', 'h_city_value', 'g_city_value', 'bim_city_value'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
     }
 }
 
@@ -75,17 +191,23 @@ function shareLink() {
 }
 
 // ==========================================
-// 2. UI ЛОГИКА
+// 2. UI ЛОГИКА (ВКЛАДКИ)
 // ==========================================
 function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    document.getElementById('tab-' + tabId).classList.add('active');
-    document.getElementById('btn-' + tabId).classList.add('active');
+
+    const content = document.getElementById('tab-' + tabId);
+    const btn = document.getElementById('btn-' + tabId);
+
+    if (content) content.classList.add('active');
+    if (btn) btn.classList.add('active');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const syncToggle = document.getElementById('syncToggle');
+    if (!syncToggle) return;
+
     ['sync-length', 'sync-width', 'sync-height', 'sync-city'].forEach(cls => {
         const els = document.querySelectorAll('.' + cls);
         els.forEach(el => {
@@ -213,14 +335,19 @@ async function calcVent() {
     document.getElementById('v-dashboard').innerHTML = '<p>Расчёт...</p>';
 
     const data = {
-        length: parseFloat(document.getElementById('v_length').value), width: parseFloat(document.getElementById('v_width').value),
-        height: parseFloat(document.getElementById('v_height').value), people: parseInt(document.getElementById('v_people').value),
-        heat_gain_kw: parseFloat(document.getElementById('v_heat').value), t_inside: parseFloat(document.getElementById('v_t_in').value),
-        t_outside: parseFloat(document.getElementById('v_t_out').value), room_type: document.getElementById('v_room_type').value,
-        duct_length: parseFloat(document.getElementById('v_duct_len').value), duct_shape: document.getElementById('v_duct_shape').value,
-        recup_efficiency: parseFloat(document.getElementById('v_recup_eff').value) || 0,
-        electricity_tariff: parseFloat(document.getElementById('v_tariff').value) || 5.5,
-        season_days: parseInt(document.getElementById('v_season_days').value) || 210
+        length: parseFloat(document.getElementById('v_length')?.value) || 10,
+        width: parseFloat(document.getElementById('v_width')?.value) || 6,
+        height: parseFloat(document.getElementById('v_height')?.value) || 3,
+        people: parseInt(document.getElementById('v_people')?.value) || 0,
+        heat_gain_kw: parseFloat(document.getElementById('v_heat')?.value) || 0,
+        t_inside: parseFloat(document.getElementById('v_t_in')?.value) || 22,
+        t_outside: parseFloat(document.getElementById('v_t_out')?.value) || -32,
+        room_type: document.getElementById('v_room_type')?.value || 'office',
+        duct_length: parseFloat(document.getElementById('v_duct_len')?.value) || 20,
+        duct_shape: document.getElementById('v_duct_shape')?.value || 'round',
+        recup_efficiency: parseFloat(document.getElementById('v_recup_eff')?.value) || 0,
+        electricity_tariff: parseFloat(document.getElementById('v_tariff')?.value) || 5.5,
+        season_days: parseInt(document.getElementById('v_season_days')?.value) || 210
     };
     lastData.vent = data;
 
@@ -228,6 +355,8 @@ async function calcVent() {
         const resp = await fetch('/api/ventilation/calculate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         if (!resp.ok) throw new Error('Ошибка сервера');
         const r = await resp.json(); lastResp.vent = r;
+
+        let dt_heat = r.air_exchange.delta_t_heat || 5.0;
 
         let recupHtml = '';
         if (r.recuperation && r.recuperation.q_saved_kw > 0) {
@@ -252,7 +381,7 @@ async function calcVent() {
             let frostWarn = r.recuperation.frost_warning ? `<div class="warn-box" style="margin-top:10px;">⚠️ ${r.recuperation.frost_warning}</div>` : '';
             recupMethodology = `
                 <div class="formula-block" style="background: #f0fdf4; border-left-color: #22c55e;">
-                    <b>7. Рекуперация:</b> Q_экон = L × ρ × c × Δt × КПД / 3600 = ${data.length} × 1.2 × 1.005 × ${r.air_exchange.delta_t} × ${(data.recup_efficiency/100).toFixed(2)} / 3600 = <b>${r.recuperation.q_saved_kw} кВт</b><br>
+                    <b>7. Рекуперация:</b> Q_экон = L × ρ × c × Δt_нар × КПД / 3600 = ${r.air_exchange.L_max_m3h} × 1.2 × 1.005 × ${r.air_exchange.delta_t} × ${(data.recup_efficiency/100).toFixed(2)} / 3600 = <b>${r.recuperation.q_saved_kw} кВт</b><br>
                     Энергия за сезон = ${r.recuperation.q_saved_kw} кВт × ${data.season_days} дней × 24 ч = <b>${r.recuperation.energy_saved_kwh} кВт*ч</b><br>
                     Экономия денег = ${r.recuperation.energy_saved_kwh} кВт*ч × ${data.electricity_tariff} руб = <b>${r.recuperation.money_saved_rub} руб.</b>
                     ${frostWarn}
@@ -261,12 +390,17 @@ async function calcVent() {
         }
 
         document.getElementById('v-methodology').innerHTML = `
-            <div class="formula-block"><b>1. Расход по людям:</b> L_люди = N × L_норм = ${data.people} × ${(r.air_exchange.L_people_m3h / data.people).toFixed(1)} = <b>${r.air_exchange.L_people_m3h} м³/ч</b><span class="norm-ref">СП 60.13330.2020, табл. В.1</span></div>
-            <div class="formula-block"><b>2. Расход по кратности:</b> L_крат = V × n = ${r.air_exchange.volume_m3} × ${(r.air_exchange.L_rate_m3h / r.air_exchange.volume_m3).toFixed(1)} = <b>${r.air_exchange.L_rate_m3h} м³/ч</b><span class="norm-ref">СП 60.13330.2020, прил. В</span></div>
-            <div class="formula-block"><b>3. Расход по теплоизбыткам:</b> L_тепло = 3600 × Q / (ρ × c × Δt) = 3600 × ${data.heat_gain_kw} / (1.2 × 1.005 × ${r.air_exchange.delta_t}) = <b>${r.air_exchange.L_heat_m3h} м³/ч</b><span class="norm-ref">Лекции УрФУ</span></div>
+            <div class="formula-block"><b>1. Расход по людям:</b> L_люди = N × L_норм = ${data.people} × ${(r.air_exchange.L_people_m3h / (data.people || 1)).toFixed(1)} = <b>${r.air_exchange.L_people_m3h} м³/ч</b><span class="norm-ref">СП 60.13330.2020, табл. В.1</span></div>
+            <div class="formula-block"><b>2. Расход по кратности:</b> L_крат = V × n = ${r.air_exchange.volume_m3} × ${(r.air_exchange.L_rate_m3h / (r.air_exchange.volume_m3 || 1)).toFixed(1)} = <b>${r.air_exchange.L_rate_m3h} м³/ч</b><span class="norm-ref">СП 60.13330.2020, прил. В</span></div>
+
+            <div class="formula-block">
+                <b>3. Расход по теплоизбыткам:</b> L_тепло = 3600 × Q / (ρ × c × Δt_ассим) = 3600 × ${data.heat_gain_kw} / (1.2 × 1.005 × ${dt_heat}) = <b>${r.air_exchange.L_heat_m3h} м³/ч</b>
+                <span class="norm-ref">Δt_ассим = ${dt_heat}°C (градиент между удаляемым и приточным воздухом)</span>
+            </div>
+
             <div class="formula-block" style="background: #eff6ff; border-left-color: #2563eb;"><b>4. Итоговый расход:</b> L_итог = max(L_люди, L_крат, L_тепло) = <b>${r.air_exchange.L_max_m3h} м³/ч</b></div>
-            <div class="formula-block"><b>5. Диаметр:</b> D = √(4 × L / (3600 × π × v)) → принят <b>${r.duct.shape === 'round' ? r.duct.diameter_mm + ' мм' : r.duct.width_mm + '×' + r.duct.height_mm + ' мм'}</b><span class="norm-ref">ГОСТ Р 70349-2022 (v=5 м/с)</span></div>
-            <div class="formula-block"><b>6. Потери:</b> ΔP = ${r.pressure_loss.friction_loss_pa} + ${r.pressure_loss.local_loss_pa} + 230 = <b>${r.pressure_loss.total_loss_pa} Па</b> (с запасом 15%)</div>
+            <div class="formula-block"><b>5. Диаметр:</b> D = √(4 × L / (3600 × π × v)) → принят <b>${r.duct.shape === 'round' ? r.duct.diameter_mm + ' мм' : r.duct.width_mm + '×' + r.duct.height_mm + ' мм'}</b><span class="norm-ref">СП 60.13330.2020 (v=5 м/с)</span></div>
+            <div class="formula-block"><b>6. Потери:</b> ΔP = ΔP_трение (${r.pressure_loss.friction_loss_pa}) + ΔP_мест (${r.pressure_loss.local_loss_pa}) + ΔP_оборудования (230 Па) = <b>${r.pressure_loss.total_loss_pa} Па</b></div>
             ${recupMethodology}
         `;
 
@@ -276,21 +410,20 @@ async function calcVent() {
         const grouped = {};
         r.solutions.forEach(s => { if(!grouped[s.category]) grouped[s.category]=[]; grouped[s.category].push(s); });
 
-        const icons = {
-            unit: `<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 7h4v4H7V7zm6 0h4v4h-4V7zm-6 6h4v4H7v-4zm6 0h4v4h-4v-4z"/></svg>`,
-            fan: `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>`,
-            duct: `<svg viewBox="0 0 24 24"><path d="M3 3h18v18h-4V7H3V3z"/></svg>`,
-            heater: `<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 7h10v2H7V7zm0 4h10v2H7v-2zm0 4h10v2H7v-2z"/></svg>`,
-            filter: `<svg viewBox="0 0 24 24"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h4v4H7V7zm6 0h4v4h-4V7zm-6 6h4v4H7v-4zm6 0h4v4h-4v-4z"/></svg>`,
-            recuperator: `<svg viewBox="0 0 24 24"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm6 9.09c0 4-2.55 7.7-6 8.83-3.45-1.13-6-4.82-6-8.83V6.3l6-2.25 6 2.25v4.79z"/></svg>`
-        };
         const names = { unit: "Приточные установки", fan: "Вентиляторы", duct: "Воздуховоды", heater: "Калориферы", filter: "Фильтры", recuperator: "Рекуператоры" };
+
+        if (!grouped['unit'] && !grouped['fan']) {
+            cat.innerHTML += `<div class="warn-box">⚠️ В каталоге не найдено вентиляторов или установок с расходом более ${r.equipment.fan_flow_m3h} м³/ч. Требуется подбор промышленного оборудования.</div>`;
+        }
+        if (!grouped['heater'] && r.equipment.heater_power_kw > 0) {
+            cat.innerHTML += `<div class="warn-box">⚠️ В каталоге не найдено калориферов мощностью более ${r.equipment.heater_power_kw} кВт.</div>`;
+        }
 
         ["unit", "fan", "duct", "heater", "filter", "recuperator"].forEach(c => {
             if (!grouped[c]) return;
             grouped[c].sort((a, b) => a.price_rub - b.price_rub);
             const min = grouped[c][0].price_rub;
-            cat.innerHTML += `<div class="category-header">${icons[c]} <h3>${names[c]}</h3></div><div class="solutions-grid" id="grid-${c}"></div>`;
+            cat.innerHTML += `<div class="category-header"><h3>${names[c]}</h3></div><div class="solutions-grid" id="grid-${c}"></div>`;
             const grid = document.getElementById(`grid-${c}`);
             grouped[c].forEach(s => {
                 const best = s.price_rub === min;
@@ -320,21 +453,28 @@ async function calcHeat() {
     resContainer.style.display = 'block';
     document.getElementById('h-dashboard').innerHTML = '<p>Расчёт...</p>';
 
-    let velRaw = document.getElementById('h_pipe_velocity').value.replace(',', '.');
-    let velocity = parseFloat(velRaw);
+    let velRaw = document.getElementById('h_pipe_velocity')?.value || '0.6';
+    let velocity = parseFloat(velRaw.replace(',', '.'));
     if (isNaN(velocity) || velocity <= 0) velocity = 0.6;
 
     const data = {
-        t_outside: parseFloat(document.getElementById('h_city').value), t_inside: parseFloat(document.getElementById('h_t_in').value),
-        wall_area: parseFloat(document.getElementById('h_wall_area').value), wall_mat: document.getElementById('h_wall_mat').value,
-        wall_thick: parseFloat(document.getElementById('h_wall_thick').value), insul_mat: document.getElementById('h_insul_mat').value,
-        insul_thick: parseFloat(document.getElementById('h_insul_thick').value), window_area: parseFloat(document.getElementById('h_win_area').value),
-        window_type: document.getElementById('h_win_type').value, roof_area: parseFloat(document.getElementById('h_roof_area').value),
-        roof_insul: parseFloat(document.getElementById('h_roof_insul').value), floor_area: parseFloat(document.getElementById('h_floor_area').value),
-        t_supply: parseFloat(document.getElementById('h_t_supply').value), t_return: parseFloat(document.getElementById('h_t_return').value),
-        connection_type: document.getElementById('h_connection_type').value,
-        uf_area: parseFloat(document.getElementById('h_uf_area').value) || 0,
-        uf_spacing: parseFloat(document.getElementById('h_uf_spacing').value) || 150,
+        t_outside: parseFloat(document.getElementById('h_t_out')?.value) || -32,
+        t_inside: parseFloat(document.getElementById('h_t_in')?.value) || 22,
+        wall_area: parseFloat(document.getElementById('h_wall_area')?.value) || 0,
+        wall_mat: document.getElementById('h_wall_mat')?.value || 'brick_hollow',
+        wall_thick: parseFloat(document.getElementById('h_wall_thick')?.value) || 0.38,
+        insul_mat: document.getElementById('h_insul_mat')?.value || 'minwool',
+        insul_thick: parseFloat(document.getElementById('h_insul_thick')?.value) || 0.1,
+        window_area: parseFloat(document.getElementById('h_win_area')?.value) || 0,
+        window_type: document.getElementById('h_win_type')?.value || 'double_chamber',
+        roof_area: parseFloat(document.getElementById('h_roof_area')?.value) || 0,
+        roof_insul: parseFloat(document.getElementById('h_roof_insul')?.value) || 0.2,
+        floor_area: parseFloat(document.getElementById('h_floor_area')?.value) || 0,
+        t_supply: parseFloat(document.getElementById('h_t_supply')?.value) || 90,
+        t_return: parseFloat(document.getElementById('h_t_return')?.value) || 70,
+        connection_type: document.getElementById('h_connection_type')?.value || 'side',
+        uf_area: parseFloat(document.getElementById('h_uf_area')?.value) || 0,
+        uf_spacing: parseFloat(document.getElementById('h_uf_spacing')?.value) || 150,
         pipe_velocity: velocity
     };
     lastData.heat = data;
@@ -422,7 +562,9 @@ async function calcHeat() {
 function renderHeatCatalog() {
     if (!currentHeatData) return;
     const catalog = document.getElementById('h-catalog');
-    const sortType = document.getElementById('h_sort').value;
+    const sortEl = document.getElementById('h_sort');
+    const sortType = sortEl ? sortEl.value : 'price_asc';
+
     let items = [...currentHeatData.solutions];
     if (sortType === 'price_asc') items.sort((a, b) => a.price_rub - b.price_rub);
     else if (sortType === 'price_desc') items.sort((a, b) => b.price_rub - a.price_rub);
@@ -431,18 +573,18 @@ function renderHeatCatalog() {
     const grouped = { boiler: [], radiator: [], pump: [] };
     items.forEach(s => { if (grouped[s.category]) grouped[s.category].push(s); });
 
-    const icons = {
-        boiler: `<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM9 7h6v10H9V7z"/></svg>`,
-        radiator: `<svg viewBox="0 0 24 24"><path d="M4 6h16v12H4V6zm2 2v8h12V8H6zm2 2h2v4H8v-4zm4 0h2v4h-2v-4zm4 0h2v4h-2v-4z"/></svg>`,
-        pump: `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>`
-    };
     const names = { boiler: "Газовые котлы", radiator: "Радиаторы отопления", pump: "Циркуляционные насосы" };
 
     catalog.innerHTML = '';
+
+    if (!grouped['boiler'] && !grouped['radiator'] && !grouped['pump']) {
+         catalog.innerHTML += `<div class="warn-box">⚠️ Оборудование для заданных параметров не найдено в каталоге.</div>`;
+    }
+
     ['boiler', 'radiator', 'pump'].forEach(cat => {
         if (!grouped[cat] || grouped[cat].length === 0) return;
         const minPrice = Math.min(...grouped[cat].map(i => i.price_rub));
-        catalog.innerHTML += `<div class="category-header">${icons[cat]} <h3>${names[cat]}</h3></div><div class="solutions-grid" id="grid-heat-${cat}"></div>`;
+        catalog.innerHTML += `<div class="category-header"><h3>${names[cat]}</h3></div><div class="solutions-grid" id="grid-heat-${cat}"></div>`;
         const grid = document.getElementById(`grid-heat-${cat}`);
         grouped[cat].forEach(s => {
             const isBest = s.price_rub === minPrice;
@@ -471,19 +613,21 @@ async function calcGas() {
     resContainer.style.display = 'block';
     document.getElementById('g-dashboard').innerHTML = '<p>Расчёт...</p>';
 
-    const length = parseFloat(document.querySelector('.sync-length').value) || 0;
-    const width = parseFloat(document.querySelector('.sync-width').value) || 0;
-    const height = parseFloat(document.getElementById('g_room_height').value) || 0;
-    const volume = length * width * height;
-    document.getElementById('g_room_volume').value = volume > 0 ? volume : '';
+    const volume = parseFloat(document.getElementById('g_room_volume')?.value) || 60;
+    const height = parseFloat(document.getElementById('g_room_height')?.value) || 3;
 
     const data = {
-        city_id: document.getElementById('g_city').value, boiler_power_kw: parseFloat(document.getElementById('g_boiler_power').value),
-        has_stove: document.getElementById('g_has_stove').checked, has_water_heater: document.getElementById('g_has_heater').checked,
-        room_volume: volume, room_height: height, combustion_chamber: document.getElementById('g_chamber').value,
-        chimney_height: parseFloat(document.getElementById('g_chimney_height').value),
-        pipe_length: parseFloat(document.getElementById('g_pipe_length').value), local_zeta: parseFloat(document.getElementById('g_local_zeta').value),
-        window_area: parseFloat(document.getElementById('g_window_area').value)
+        city_id: document.getElementById('g_city_search')?.value || 'Москва',
+        boiler_power_kw: parseFloat(document.getElementById('g_boiler_power')?.value) || 24,
+        has_stove: document.getElementById('g_has_stove')?.checked || false,
+        has_water_heater: document.getElementById('g_has_heater')?.checked || false,
+        room_volume: volume,
+        room_height: height,
+        combustion_chamber: document.getElementById('g_chamber')?.value || 'closed',
+        chimney_height: parseFloat(document.getElementById('g_chimney_height')?.value) || 6,
+        pipe_length: parseFloat(document.getElementById('g_pipe_length')?.value) || 15,
+        local_zeta: parseFloat(document.getElementById('g_local_zeta')?.value) || 5.0,
+        window_area: parseFloat(document.getElementById('g_window_area')?.value) || 1.5
     };
     lastData.gas = data;
 
