@@ -1,51 +1,69 @@
-# routers/gas_api.py
-import json
-import os
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
-from typing import Dict, Any
+from pydantic import BaseModel
 from core import gas_math
+import json
+from pathlib import Path
 
 router = APIRouter(prefix="/api/gas", tags=["Газоснабжение"])
-
-CITIES_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'cities.json')
-with open(CITIES_PATH, 'r', encoding='utf-8') as f:
-    CITIES = {c['id']: c for c in json.load(f)}
 
 
 class GasRequest(BaseModel):
     city_id: str
-    boiler_power_kw: float = Field(..., gt=0)
+    boiler_power_kw: float
     has_stove: bool
     has_water_heater: bool
-    room_volume: float = Field(..., gt=0)
-    room_height: float = Field(..., gt=0)
+    room_volume: float
+    room_height: float
     combustion_chamber: str
-    chimney_height: float = Field(..., ge=0)
-    pipe_length: float = Field(..., gt=0)
-    local_zeta: float = Field(..., ge=0)
-    window_area: float = Field(..., ge=0, description="Площадь окна в котельной, м²")
+    chimney_height: float
+    pipe_length: float
+    local_zeta: float
+    window_area: float
 
 
-class GasResponse(BaseModel):
-    results: Dict[str, Any]
-    city_info: Dict[str, Any]
-
-
-@router.post("/calculate", response_model=GasResponse)
-async def calculate(request: GasRequest):
-    if request.city_id not in CITIES:
-        raise HTTPException(status_code=400, detail="Город не найден в справочнике")
-
-    city = CITIES[request.city_id]
-
+@router.post("/calculate")
+def calculate_gas(data: GasRequest):
     try:
+        # Пытаемся найти город в старом справочнике
+        cities_path = Path(__file__).parent.parent / "data" / "cities.json"
+        city_info = None
+
+        if cities_path.exists():
+            with open(cities_path, "r", encoding="utf-8") as f:
+                cities = json.load(f)
+                # Ищем по ID или по названию (на случай, если пришел ID)
+                city_info = next((c for c in cities if c.get("id") == data.city_id or c.get("name") == data.city_id),
+                                 None)
+
+        # Если города нет в базе (например, выбрали из нового списка СП), делаем заглушку
+        if not city_info:
+            city_info = {
+                "name": data.city_id,
+                "gas_operator": "Информация отсутствует",
+                "gas_phone": "-",
+                "gas_email": "-",
+                "gas_site": "-",
+                "connection_cost": "Неизвестно",
+                "note": "Данные по газовой службе для этого населенного пункта временно не добавлены в базу."
+            }
+
         res = gas_math.calculate_gas_system(
-            request.boiler_power_kw, request.has_stove, request.has_water_heater,
-            request.room_volume, request.room_height, request.combustion_chamber,
-            request.chimney_height, request.pipe_length, request.local_zeta,
-            request.window_area
+            boiler_power_kw=data.boiler_power_kw,
+            has_stove=data.has_stove,
+            has_water_heater=data.has_water_heater,
+            room_volume=data.room_volume,
+            room_height=data.room_height,
+            combustion_chamber=data.combustion_chamber,
+            chimney_height=data.chimney_height,
+            pipe_length=data.pipe_length,
+            local_zeta=data.local_zeta,
+            window_area=data.window_area
         )
-        return GasResponse(results=res, city_info=city)
+
+        return {
+            "results": res,
+            "city_info": city_info
+        }
     except Exception as e:
+        # Если что-то пошло не так на сервере, возвращаем текст ошибки
         raise HTTPException(status_code=500, detail=str(e))

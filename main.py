@@ -1,21 +1,29 @@
-# main.py
+import webbrowser
+import threading
+from contextlib import asynccontextmanager
+import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from routers import vent_api, heat_api, gas_api, export_api
+
 from db.database import init_db
-from routers import projects_api
-from routers import ifc_api
-import webbrowser
-import threading
-import uvicorn
+from routers import vent_api, heat_api, gas_api, export_api, projects_api, ifc_api
 
-
-app = FastAPI(title="Инженерный калькулятор", version="6.0.0")
-@app.on_event("startup")
-def startup_event():
+# Новый современный обработчик старта приложения
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Этот код выполняется при запуске сервера
     init_db()
-# Подключаем статику (CSS, JS)
+    yield
+    # Этот код выполнился бы при выключении сервера (пока не нужен)
+
+app = FastAPI(
+    title="Инженерный калькулятор",
+    version="6.0.0",
+    lifespan=lifespan  # Подключаем наш новый обработчик
+)
+
+# Подключаем статику (CSS, JS, справочники)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Подключаем API роутеры

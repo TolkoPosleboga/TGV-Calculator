@@ -1,68 +1,78 @@
-# routers/vent_api.py
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
-from typing import Literal, Dict, Any, List, Optional
+from pydantic import BaseModel
+from typing import List
 from core import vent_math
-from catalogs.catalog_vent import EquipmentSolution
 
 router = APIRouter(prefix="/api/ventilation", tags=["Вентиляция"])
 
+class LocalResistance(BaseModel):
+    name: str
+    qty: int
+    zeta: float
+
+class DuctSection(BaseModel):
+    name: str
+    length: float
+    resistances: List[LocalResistance]
 
 class VentRequest(BaseModel):
-    length: float = Field(..., gt=0)
-    width: float = Field(..., gt=0)
-    height: float = Field(..., gt=0)
-    people: int = Field(..., ge=0)
-    heat_gain_kw: float = Field(..., ge=0)
+    length: float
+    width: float
+    height: float
+    people: int
+    heat_gain_kw: float
+    moisture_gain_g_h: float
+    hazard_g_h: float
+    mpc_mg_m3: float
     t_inside: float
     t_outside: float
-    room_type: Literal["office", "classroom", "industrial", "residential"]
-    duct_length: float = Field(..., gt=0)
-    duct_shape: Literal["round", "rect"]
-    # НОВЫЕ ПОЛЯ
-    recup_efficiency: float = Field(..., ge=0, le=100, description="КПД рекуператора, %")
-    electricity_tariff: float = Field(..., ge=0, description="Тариф на электроэнергию, руб/кВт*ч")
-    season_days: int = Field(..., ge=0, description="Длительность отопительного сезона, дней")
+    room_type: str
+    duct_shape: str
+    duct_material: str
+    recup_efficiency: float
+    electricity_tariff: float
+    season_days: int
+    sections: List[DuctSection]
+    distance_m: float # НОВОЕ ПОЛЕ
 
-
-class VentResponse(BaseModel):
-    air_exchange: Dict[str, Any]
-    duct: Dict[str, Any]
-    pressure_loss: Dict[str, Any]
-    equipment: Dict[str, Any]
-    solutions: List[EquipmentSolution]
-    system_warning: Optional[str] = None
-    recuperation: Optional[Dict[str, Any]] = None
-    report: str
-
-
-@router.post("/calculate", response_model=VentResponse)
-async def calculate(request: VentRequest):
+@router.post("/calculate")
+def calculate_ventilation(data: VentRequest):
     try:
-        air = vent_math.calculate_air_exchange(request.length, request.width, request.height, request.people,
-                                               request.heat_gain_kw, request.t_inside, request.t_outside,
-                                               request.room_type)
-        duct = vent_math.select_duct(air["L_max_m3h"], request.duct_shape)
-        pressure = vent_math.calculate_pressure_loss(air["L_max_m3h"], duct, request.duct_length, request.room_type)
-        equip = vent_math.select_equipment_base(air["L_max_m3h"], pressure, request.t_inside, request.t_outside)
-        sols = vent_math.find_solutions(equip["fan_flow_m3h"], equip["fan_pressure_pa"], equip["heater_power_kw"])
+        air = vent_math.calculate_air_exchange(
+            length=data.length, width=data.width, height=data.height,
+            people=data.people, heat_gain_kw=data.heat_gain_kw,
+            moisture_gain_g_h=data.moisture_gain_g_h, hazard_g_h=data.hazard_g_h, mpc_mg_m3=data.mpc_mg_m3,
+            t_inside=data.t_inside, t_outside=data.t_outside, room_type=data.room_type
+        )
 
-        # Расчет рекуперации
-        recup = None
-        if request.recup_efficiency > 0:
-            recup = vent_math.calculate_recuperation(
-                air["L_max_m3h"], request.t_inside, request.t_outside,
-                request.recup_efficiency, request.electricity_tariff, request.season_days
-            )
+        duct = vent_math.select_duct(air["L_max_m3h"], data.duct_shape)
+        sections_dict = [sec.model_dump() for sec in data.sections]
 
-        warning = None
-        if air["L_max_m3h"] > 50000:
-            warning = "Требуемый расход превышает 50 000 м³/ч. Рекомендуется проектирование ЦПУ из секций."
+        pressure = vent_math.calculate_pressure_loss(air["L_max_m3h"], duct, sections_dict, data.duct_material)
+        equipment = vent_math.select_equipment_base(air["L_max_m3h"], pressure, data.t_inside, data.t_outside)
 
-        report = vent_math.generate_vent_report(air, duct, pressure, equip, recup)
+        recup = vent_math.calculate_recuperation(
+            L=air["L_max_m3h"], t_inside=data.t_inside, t_outside=data.t_outside,
+            efficiency_pct=data.recup_efficiency, electricity_tariff=data.electricity_tariff,
+            days=data.season_days
+        )
 
-        return VentResponse(air_exchange=air, duct=duct, pressure_loss=pressure,
-                            equipment=equip, solutions=sols, system_warning=warning,
-                            recuperation=recup, report=report)
+        solutions = vent_math.find_solutions(air["L_max_m3h"], pressure["total_loss_pa"], equipment["heater_power_kw"])
+
+        # Акустический расчет (берем шум самого дешевого вентилятора или установки)
+        best_fan = next((s for s in solutions if s.category in ['fan', 'unit']), None)
+        fan_noise = best_fan.noise_db if best_fan else 65 # Заглушка, если не нашли
+
+        acoustics = vent_math.calculate_acoustics(fan_noise, sections_dict, data.distance_m, data.room_type)
+
+        report = vent_math.generate_vent_report(air, duct, pressure, equipment, recup)
+
+        return {
+            "air_exchange": air, "duct": duct, "pressure_loss": pressure,
+            "equipment": equipment, "recuperation": recup,
+            "solutions": [s.model_dump() for s in solutions],
+            "acoustics": acoustics, # ДОБАВИЛИ В ОТВЕТ
+            "report": report
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
