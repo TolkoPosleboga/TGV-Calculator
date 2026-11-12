@@ -37,88 +37,104 @@ async function calcHeat() {
             complianceHtml = `<div class="result-box" style="background: ${bgColor}; border-color: ${borderColor}; grid-column: 1 / -1;"><h4 style="color: #1e293b;">Проверка энергоэффективности (СП 50.13330)</h4><div style="font-size: 16px; font-weight: 600; color: #1e293b; margin-top: 5px;">${icon} ${comp.message}</div><div style="font-size: 13px; color: #475569; margin-top: 5px;">Требуемое сопротивление R_треб = ${comp.r_req} (м²·°С)/Вт. Фактическое R_факт = ${res.r_wall} (м²·°С)/Вт.</div></div>`;
         }
 
+        // --- БЕЗОПАСНЫЙ ВЫВОД ГИДРАВЛИКИ ---
+        let hydrDash = '';
+        let hydrMethodology = '';
+
+        if (hydr.error) {
+            hydrDash = `<div class="result-box" style="background: #fef2f2; border-color: #ef4444;"><h4 style="color: #dc2626;">Гидравлика</h4><div class="value" style="color: #dc2626; font-size: 14px;">Ошибка Δt</div></div>`;
+            hydrMethodology = `<div class="formula-block" style="background: #fef2f2; border-left-color: #dc2626;"><b>10. Гидравлика системы отопления:</b><br><span style="color:red">Ошибка: ${hydr.error}. Проверьте температуры подачи и обратки (подача должна быть больше обратки).</span></div>`;
+        } else {
+            hydrDash = `
+                <div class="result-box" style="background: #fdf4ff; border-color: #f0abfc;"><h4 style="color: #86198f;">Гидравлика (Труба)</h4><div class="value" style="color: #86198f;">Ду${hydr.selected_d_mm} <span class="unit">мм</span></div></div>
+                <div class="result-box" style="background: #fdf4ff; border-color: #f0abfc;"><h4 style="color: #86198f;">Бак расширительный</h4><div class="value" style="color: #86198f;">${hydr.tank_volume_l} <span class="unit">л</span></div></div>
+            `;
+            hydrMethodology = `
+                <div class="formula-block" style="background: #fdf4ff; border-left-color: #d946ef;">
+                    <b>10. Гидравлика системы отопления:</b><br>
+                    $$ G = \\frac{Q_{\\text{сум}}}{c \\times \\Delta t_{\\text{системы}}} = \\frac{${res.total_with_infiltration_w}}{4180 \\times (${data.t_supply} - ${data.t_return})} = \\mathbf{${hydr.flow_m3h} \\text{ м}^3/\\text{ч}} $$
+                    $$ D = \\sqrt{\\frac{4 \\times G}{3600 \\times \\pi \\times v}} \\to \\text{принят стандартный } \\mathbf{\\text{Ду}${hydr.selected_d_mm} \\text{ мм}} $$
+                    $$ V_{\\text{бака}} = V_{\\text{системы}} \\times 0.1 \\times 1.5 = \\mathbf{${hydr.tank_volume_l} \\text{ л}} $$
+                    <span class="norm-ref">СП 60.13330.2020, СП 41-102-98</span>
+                </div>
+            `;
+        }
+
+        // --- БЕЗОПАСНЫЙ ВЫВОД ТЕПЛОГО ПОЛА ---
         let ufHtml = '';
-        if (uf) ufHtml = `<div class="result-box" style="background: #eff6ff; border-color: #bfdbfe;"><h4>Труба теплого пола</h4><div class="value">${uf.total_pipe_length} <span class="unit">м</span></div></div><div class="result-box" style="background: #eff6ff; border-color: #bfdbfe;"><h4>Контуров (петель)</h4><div class="value">${uf.num_loops} <span class="unit">шт</span></div></div>`;
+        let ufMethodology = '';
+
+        if (uf) {
+            if (uf.error) {
+                ufHtml = `<div class="result-box" style="background: #fef2f2; border-color: #ef4444; grid-column: 1 / -1;"><h4 style="color: #dc2626;">Тёплый пол</h4><div class="value" style="color: #dc2626; font-size: 14px;">${uf.error}</div></div>`;
+                ufMethodology = `<div class="formula-block" style="background: #fef2f2; border-left-color: #dc2626;"><b>11. Тёплый пол:</b><br><span style="color:red">Ошибка: ${uf.error}</span></div>`;
+            } else {
+                ufHtml = `<div class="result-box" style="background: #eff6ff; border-color: #bfdbfe;"><h4>Труба теплого пола</h4><div class="value">${uf.total_pipe_length} <span class="unit">м</span></div></div><div class="result-box" style="background: #eff6ff; border-color: #bfdbfe;"><h4>Контуров (петель)</h4><div class="value">${uf.num_loops} <span class="unit">шт</span></div></div>`;
+                ufMethodology = `
+                    <div class="formula-block" style="background: #f0fdf4; border-left-color: #22c55e;">
+                        <b>11. Тёплый пол:</b><br>
+                        $$ L = \\frac{S_{\\text{пола}}}{\\text{шаг}} \\times 1.1 = \\frac{${data.uf_area}}{${data.uf_spacing}} \\times 1.1 = \\mathbf{${uf.total_pipe_length} \\text{ м}} $$
+                        $$ \\text{Количество петель} = \\frac{L}{80} = \\mathbf{${uf.num_loops} \\text{ шт}} $$
+                    </div>
+                `;
+            }
+        }
 
         document.getElementById('h-dashboard').innerHTML = `
             ${complianceHtml}
             <div class="result-box"><h4>Теплопотери стен</h4><div class="value">${res.q_wall_w.toLocaleString('ru-RU')} <span class="unit">Вт</span></div></div>
             <div class="result-box"><h4>Общие с инфильтрацией</h4><div class="value">${res.total_with_infiltration_w.toLocaleString('ru-RU')} <span class="unit">Вт</span></div></div>
             <div class="result-box" style="background: var(--success-bg); border-color: var(--success-border);"><h4 style="color: var(--success);">Мощность котла</h4><div class="value" style="color: var(--success);">${res.boiler_power_kw} <span class="unit">кВт</span></div></div>
-            <div class="result-box" style="background: #fdf4ff; border-color: #f0abfc;"><h4 style="color: #86198f;">Гидравлика (Труба)</h4><div class="value" style="color: #86198f;">Ду${hydr.selected_d_mm} <span class="unit">мм</span></div></div>
-            <div class="result-box" style="background: #fdf4ff; border-color: #f0abfc;"><h4 style="color: #86198f;">Бак расширительный</h4><div class="value" style="color: #86198f;">${hydr.tank_volume_l} <span class="unit">л</span></div></div>
+            ${hydrDash}
             ${ufHtml}
         `;
-
-        let hydrMethodology = `
-            <div class="formula-block" style="background: #fdf4ff; border-left-color: #d946ef;">
-                <b>10. Гидравлика системы отопления:</b><br>
-                1. Расход теплоносителя: G = Q_сум / (c × Δt_системы)<br>
-                G = ${res.total_with_infiltration_w} Вт / (4180 Дж/кг·°C × (${data.t_supply} - ${data.t_return})) = <b>${hydr.flow_m3h} м³/ч</b><br>
-                2. Требуемый диаметр трубы: D = √(4 × G / (3600 × π × v))<br>
-                D = √(4 × ${hydr.flow_m3h} / (3600 × 3.14 × ${data.pipe_velocity})) → принят стандартный <b>Ду${hydr.selected_d_mm} мм</b><br>
-                3. Объем расширительного бака: V_бака = V_системы × 0.1 × 1.5<br>
-                V_бака = ${hydr.tank_volume_l} литров (принят стандартный ближайший объем)<br>
-                <span class="norm-ref">СП 60.13330.2020, СП 41-102-98</span>
-            </div>
-        `;
-
-        let ufMethodology = uf ? `
-            <div class="formula-block" style="background: #f0fdf4; border-left-color: #22c55e;">
-                <b>11. Тёплый пол:</b><br>
-                Длина трубы = (Площадь / Шаг укладки) × 1.1 (запас на повороты)<br>
-                L = (${data.uf_area} / ${data.uf_spacing}) × 1.1 = <b>${uf.total_pipe_length} м</b><br>
-                Количество петель = L / 80 м (макс. длина одной петли) = <b>${uf.num_loops} шт</b>
-            </div>
-        ` : '';
 
         let compMethodology = (gsop > 0 && comp) ? `
             <div class="formula-block" style="background: #eff6ff; border-left-color: #2563eb;">
                 <b>Проверка энергоэффективности (СП 50.13330):</b><br>
-                ГСОП (Градусо-сутки) = ${gsop}<br>
-                Требуемое сопротивление: R_треб = 0.00035 × ГСОП + 1.4 = <b>${comp.r_req} (м²·°С)/Вт</b><br>
-                Фактическое сопротивление стены: R_факт = <b>${res.r_wall} (м²·°С)/Вт</b><br>
+                ГСОП = ${gsop}<br>
+                $$ R_{\\text{треб}} = 0.00035 \\times \\text{ГСОП} + 1.4 = \\mathbf{${comp.r_req} \\text{ (м}^2\\cdot^\\circ\\text{C)/Вт}} $$
+                $$ R_{\\text{факт}} = \\mathbf{${res.r_wall} \\text{ (м}^2\\cdot^\\circ\\text{C)/Вт}} $$
                 <b>Вывод:</b> ${comp.message}
             </div>
         ` : '';
 
-        document.getElementById('h-methodology').innerHTML = `
+        const methodologyContainer = document.getElementById('h-methodology');
+        methodologyContainer.innerHTML = `
             <div class="formula-block">
                 <b>1. Сопротивление теплопередаче стены:</b><br>
-                R_стены = 1/α_вн + δ_кирпича/λ_кирпича + δ_утеплителя/λ_утеплителя + 1/α_нар<br>
-                R_стены = 1/8.7 + ${data.wall_thick}/${data.wall_mat === 'brick_hollow' ? '0.35' : '0.56'} + ${data.insul_thick}/0.04 + 1/23 = <b>${res.r_wall} (м²·°С)/Вт</b>
+                $$ R_{\\text{стены}} = \\frac{1}{\\alpha_{\\text{вн}}} + \\frac{\\delta_{\\text{кирпича}}}{\\lambda_{\\text{кирпича}}} + \\frac{\\delta_{\\text{утеплителя}}}{\\lambda_{\\text{утеплителя}}} + \\frac{1}{\\alpha_{\\text{нар}}} $$
+                $$ R_{\\text{стены}} = \\frac{1}{8.7} + \\frac{${data.wall_thick}}{${data.wall_mat === 'brick_hollow' ? '0.35' : '0.56'}} + \\frac{${data.insul_thick}}{0.04} + \\frac{1}{23} = \\mathbf{${res.r_wall} \\text{ (м}^2\\cdot^\\circ\\text{C)/Вт}} $$
             </div>
             <div class="formula-block">
                 <b>2. Теплопотери через стены:</b><br>
-                Q_стен = S_стен × (t_вн - t_нар) / R_стены<br>
-                Q_стен = ${data.wall_area} × (${data.t_inside} - (${data.t_outside})) / ${res.r_wall} = <b>${res.q_wall_w} Вт</b>
+                $$ Q_{\\text{стен}} = \\frac{S_{\\text{стен}} \\times (t_{\\text{вн}} - t_{\\text{нар}})}{R_{\\text{стены}}} = \\frac{${data.wall_area} \\times (${data.t_inside} - (${data.t_outside}))}{${res.r_wall}} = \\mathbf{${res.q_wall_w} \\text{ Вт}} $$
             </div>
             <div class="formula-block">
                 <b>3. Теплопотери через окна:</b><br>
-                R_окон = ${data.window_type === 'double_chamber' ? '0.45' : (data.window_type === 'single_chamber' ? '0.32' : '0.55')} (м²·°С)/Вт<br>
-                Q_окон = ${data.win_area} × (${data.t_inside} - (${data.t_outside})) / ${data.window_type === 'double_chamber' ? '0.45' : (data.window_type === 'single_chamber' ? '0.32' : '0.55')} = <b>${res.q_window_w} Вт</b>
+                $$ R_{\\text{окон}} = ${data.window_type === 'double_chamber' ? '0.45' : (data.window_type === 'single_chamber' ? '0.32' : '0.55')} \\text{ (м}^2\\cdot^\\circ\\text{C)/Вт} $$
+                $$ Q_{\\text{окон}} = \\frac{S_{\\text{окон}} \\times (t_{\\text{вн}} - t_{\\text{нар}})}{R_{\\text{окон}}} = \\frac{${data.window_area} \\times (${data.t_inside} - (${data.t_outside}))}{${data.window_type === 'double_chamber' ? '0.45' : (data.window_type === 'single_chamber' ? '0.32' : '0.55')}} = \\mathbf{${res.q_window_w} \\text{ Вт}} $$
             </div>
             <div class="formula-block">
                 <b>4. Теплопотери через крышу и пол:</b><br>
-                Q_крыши = ${res.q_roof_w} Вт (R = ${(data.roof_insul > 0 ? (1/8.7 + data.roof_insul/0.04 + 1/23).toFixed(2) : '3.00')} (м²·°С)/Вт)<br>
-                Q_пола = ${res.q_floor_w} Вт (R = 3.0 (м²·°С)/Вт)
+                $$ Q_{\\text{крыши}} = ${res.q_roof_w} \\text{ Вт (R = ${(data.roof_insul > 0 ? (1/8.7 + data.roof_insul/0.04 + 1/23).toFixed(2) : '3.00')} (м}^2\\cdot^\\circ\\text{C)/Вт)} $$
+                $$ Q_{\\text{пола}} = ${res.q_floor_w} \\text{ Вт (R = 3.0)} $$
             </div>
             <div class="formula-block" style="background: #eff6ff; border-left-color: #2563eb;">
                 <b>5. Суммарные трансмиссионные потери:</b><br>
-                Q_транс = Q_стен + Q_окон + Q_крыши + Q_пола = <b>${res.total_loss_w} Вт</b><br>
+                $$ Q_{\\text{транс}} = Q_{\\text{стен}} + Q_{\\text{окон}} + Q_{\\text{крыши}} + Q_{\\text{пола}} = \\mathbf{${res.total_loss_w} \\text{ Вт}} $$
                 <b>6. Потери с инфильтрацией (+10%):</b><br>
-                Q_инф = Q_транс × 1.10 = <b>${res.total_with_infiltration_w} Вт</b>
+                $$ Q_{\\text{инф}} = Q_{\\text{транс}} \\times 1.10 = \\mathbf{${res.total_with_infiltration_w} \\text{ Вт}} $$
             </div>
             <div class="formula-block" style="background: #fffbeb; border-left-color: #f59e0b;">
                 <b>7. Требуемая мощность котла (+15% запас):</b><br>
-                Q_котла = Q_инф × 1.15 = ${res.total_with_infiltration_w} × 1.15 = <b>${res.boiler_power_kw} кВт</b>
+                $$ Q_{\\text{котла}} = Q_{\\text{инф}} \\times 1.15 = ${res.total_with_infiltration_w} \\times 1.15 = \\mathbf{${res.boiler_power_kw} \\text{ кВт}} $$
             </div>
             <div class="formula-block">
-                <b>8. Поправка на радиаторы (пересчет с 90/70 на фактические температуры):</b><br>
-                Δt_ном = (90+70)/2 - 20 = 60°C<br>
-                Δt_факт = (${data.t_supply}+${data.t_return})/2 - ${data.t_inside} = ${corr.dt_actual}°C<br>
-                Коэффициент = (${corr.dt_actual} / 60)^1.3 = <b>${corr.power_factor.toFixed(2)}</b><br>
-                (Это значит, что радиатор нужно брать мощнее в ${(1/corr.power_factor).toFixed(2)} раза)
+                <b>8. Поправка на радиаторы:</b><br>
+                $$ \\Delta t_{\\text{ном}} = \\frac{90+70}{2} - 20 = 60^\\circ\\text{C} $$
+                $$ \\Delta t_{\\text{факт}} = \\frac{${data.t_supply}+${data.t_return}}{2} - ${data.t_inside} = ${corr.dt_actual}^\\circ\\text{C} $$
+                $$ \\text{Коэффициент} = \\left(\\frac{\\Delta t_{\\text{факт}}}{60}\\right)^{1.3} = \\mathbf{${corr.power_factor.toFixed(2)}} $$
             </div>
             <div class="formula-block">
                 <b>9. Поправка на схему подключения:</b><br>
@@ -128,6 +144,18 @@ async function calcHeat() {
             ${hydrMethodology}
             ${ufMethodology}
         `;
+
+        if (window.renderMathInElement) {
+            renderMathInElement(methodologyContainer, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                    {left: '\\(', right: '\\)', display: false},
+                    {left: '\\[', right: '\\]', display: true}
+                ],
+                throwOnError: false
+            });
+        }
 
         document.getElementById('h-report').textContent = r.report;
         renderHeatCatalog();

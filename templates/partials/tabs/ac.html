@@ -1,0 +1,141 @@
+<div class="tab-content" id="tab-ac">
+    <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
+        <button class="btn" style="width: auto; padding: 8px 15px; background: #e0f2fe; color: #0284c7; margin: 0; font-size: 13px; border: 1px solid #bae6fd;" onclick="syncAcFromVent()">
+            🔄 Взять данные из Вентиляции
+        </button>
+    </div>
+
+    <div class="section-title">Параметры помещения</div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Город (для климата)</label>
+            <select id="ac_city" class="sync-city"></select>
+        </div>
+        <div class="form-group">
+            <label>Тип помещения</label>
+            <select id="ac_room_type" onchange="applyNormTemperature('ac')">
+                <option value="living">Жилая комната</option>
+                <option value="office" selected>Офис / Административное</option>
+                <option value="kitchen">Кухня</option>
+                <option value="bathroom">Ванная / Санузел</option>
+                <option value="corridor">Коридор</option>
+                <option value="stairwell">Лестничная клетка</option>
+                <option value="server_room">Серверная</option>
+                <option value="smoking">Курилка</option>
+                <option value="industrial_light">Производство (легкий труд)</option>
+                <option value="industrial_heavy">Производство (тяжелый труд)</option>
+                <option value="sport">Спортивный зал</option>
+            </select>
+        </div>
+        <div class="form-group checkbox" style="margin-top: 0;">
+            <input type="checkbox" id="ac_is_corner" onchange="applyNormTemperature('ac')">
+            <label style="margin: 0; text-transform: none; color: #1e293b; font-weight: 600;">Угловое помещение (+2°C)</label>
+        </div>
+        <div class="form-group">
+            <label>t внутри (°C)</label>
+            <input type="number" step="0.1" id="ac_t_in" value="24">
+        </div>
+        <div class="form-group"><label>Площадь (м²)</label><input type="number" step="0.1" id="ac_area" value="135"></div>
+        <div class="form-group"><label>Высота потолков (м)</label><input type="number" step="0.1" id="ac_height" value="3.5"></div>
+        <div class="form-group"><label>Количество людей (чел)</label><input type="number" id="ac_people" value="40"></div>
+    </div>
+
+    <div class="section-title">Окна и Освещение (Теплопоступления)</div>
+    <div class="form-grid">
+        <div class="form-group"><label>Площадь окон (м²)</label><input type="number" step="0.1" id="ac_window_area" value="14"></div>
+        <div class="form-group">
+            <label>Тип окон</label>
+            <select id="ac_win_type">
+                <option value="double_chamber" selected>Двухкамерный стеклопакет</option>
+                <option value="single_chamber">Однокамерный</option>
+                <option value="triple_chamber">Трехкамерный</option>
+            </select>
+        </div>
+        <div class="form-group"><label>Нормируемая освещенность (лк)</label><input type="number" id="ac_lux" value="300"></div>
+        <div class="form-group"><label>Удельное тепловыделение (Вт/(лк·м²))</label><input type="number" step="0.01" id="ac_w_m2" value="0.07"></div>
+    </div>
+
+    <details class="calc-details" style="margin-bottom: 20px;">
+        <summary>⚙️ Дополнительные параметры воздуха (по периодам года)</summary>
+        <div style="padding: 15px 0;">
+            <p style="font-size: 13px; color: #64748b; margin-bottom: 10px;">При выборе города данные обновляются автоматически. Вы можете изменить их вручную.</p>
+            <table style="width: 100%; font-size: 13px; text-align: center; border-collapse: collapse;">
+                <tr style="background: #e2e8f0;">
+                    <th style="padding: 8px; text-align: left;">Параметр</th>
+                    <th>Холодный (ХПГ)</th>
+                    <th>Переходный (ППГ)</th>
+                    <th>Теплый (ТПГ)</th>
+                </tr>
+                <tr>
+                    <td style="text-align: left; padding: 8px;">t наружного воздуха (°C)</td>
+                    <td><input type="number" id="ac_t_out_x" value="-39" style="padding: 6px;"></td>
+                    <td><input type="number" id="ac_t_out_p" value="10" style="padding: 6px;"></td>
+                    <td><input type="number" id="ac_t_out_t" value="24" style="padding: 6px;"></td>
+                </tr>
+                <tr>
+                    <td style="text-align: left; padding: 8px;">Влажность наружного воздуха (%)</td>
+                    <td><input type="number" step="1" id="ac_hum_out_x" value="77" style="padding: 6px;"></td>
+                    <td><input type="number" step="1" id="ac_hum_out_p" value="70" style="padding: 6px;"></td>
+                    <td><input type="number" step="1" id="ac_hum_out_t" value="55" style="padding: 6px;"></td>
+                </tr>
+                <tr>
+                    <td style="text-align: left; padding: 8px;">Энтальпия наружного (кДж/кг)</td>
+                    <td><input type="number" step="0.1" id="ac_I_out_x" value="-38.9" style="padding: 6px;" readonly></td>
+                    <td><input type="number" step="0.1" id="ac_I_out_p" value="26.5" style="padding: 6px;" readonly></td>
+                    <td><input type="number" step="0.1" id="ac_I_out_t" value="51.9" style="padding: 6px;" readonly></td>
+                </tr>
+                <tr>
+                    <td style="text-align: left; padding: 8px;">t приточного воздуха (°C)</td>
+                    <td><input type="number" id="ac_t_sup_x" value="11" style="padding: 6px;"></td>
+                    <td><input type="number" id="ac_t_sup_p" value="10" style="padding: 6px;"></td>
+                    <td><input type="number" id="ac_t_sup_t" value="24" style="padding: 6px;"></td>
+                </tr>
+                <tr>
+                    <td style="text-align: left; padding: 8px;">t удаляемого воздуха (°C)</td>
+                    <td><input type="number" id="ac_t_exh_x" value="19" style="padding: 6px;"></td>
+                    <td><input type="number" id="ac_t_exh_p" value="19" style="padding: 6px;"></td>
+                    <td><input type="number" id="ac_t_exh_t" value="27" style="padding: 6px;"></td>
+                </tr>
+                <tr>
+                    <td style="text-align: left; padding: 8px;">Энтальпия удаляемого (кДж/кг)</td>
+                    <td><input type="number" step="0.1" id="ac_I_exh_x" value="17" style="padding: 6px;"></td>
+                    <td><input type="number" step="0.1" id="ac_I_exh_p" value="31.5" style="padding: 6px;"></td>
+                    <td><input type="number" step="0.1" id="ac_I_exh_t" value="60" style="padding: 6px;"></td>
+                </tr>
+            </table>
+        </div>
+    </details>
+
+    <button class="btn" onclick="calcAc()">РАССЧИТАТЬ ВОЗДУХООБМЕН И КОНДИЦИОНИРОВАНИЕ</button>
+
+    <div id="ac-results" style="display: none; margin-top: 25px;">
+        <div class="results-dashboard" id="ac-dashboard"></div>
+
+        <div class="section-title" style="margin-top: 25px;">Сводная таблица воздухообменов (м³/ч)</div>
+        <div style="overflow-x: auto; margin-bottom: 20px;">
+            <table id="ac-results-table" style="width: 100%; font-size: 13px; text-align: center; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <thead>
+                    <tr style="background: #eff6ff; color: #1e3a8a;">
+                        <th style="padding: 10px; text-align: left;">Период года</th>
+                        <th>Явное тепло (Вт)</th>
+                        <th>Полное тепло (Вт)</th>
+                        <th>Влага (г/ч)</th>
+                        <th>L по явн. теплу</th>
+                        <th>L по полн. теплу</th>
+                        <th>L по влаге</th>
+                        <th>L по CO2</th>
+                        <th>L санитарная норма</th>
+                        <th style="background: #dbeafe;">L итоговая</th>
+                    </tr>
+                </thead>
+                <tbody id="ac-table-body"></tbody>
+            </table>
+        </div>
+
+        <details class="calc-details"><summary>🔍 Показать методику расчёта</summary><div id="ac-methodology"></div></details>
+        <details class="report-box"><summary>📄 Показать текстовый отчёт</summary><pre id="ac-report"></pre></details>
+
+        <div class="section-title" style="margin-top: 25px;">Каталог оборудования (по холоду)</div>
+        <div id="ac-catalog"></div>
+    </div>
+</div>

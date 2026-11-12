@@ -6,23 +6,48 @@
     <title>Инженерный калькулятор</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/industrial.css">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
 </head>
 <body>
 <div class="container">
     {% include 'partials/home.html' %}
     {% include 'partials/express.html' %}
+    {% include 'partials/plan_view.html' %}
+    {% include 'partials/balance_view.html' %}
     {% include 'partials/bim.html' %}
 </div>
 
-<script src="/static/js/main.js"></script>
-<script src="/static/js/corner_room.js"></script>
-<script src="/static/js/export.js"></script>
-<script src="/static/js/zeta_library.js"></script>
-<script src="/static/js/vent.js"></script>
-<script src="/static/js/heat.js"></script>
-<script src="/static/js/gas.js"></script>
-<script src="/static/js/city_search.js"></script>
-<script src="/static/js/projects.js"></script>
-<script src="/static/js/random_example.js"></script>
+<!-- ЯДРО -->
+<script src="/static/js/core/main.js"></script>
+<script src="/static/js/core/state.js"></script>
+
+<!-- ПЕСОЧНИЦА (CAD) -->
+<script src="/static/js/cad/room_factory.js"></script>
+<script src="/static/js/cad/duplicate_floor.js"></script>
+<script src="/static/js/cad/floor_manager.js"></script>
+<script src="/static/js/cad/room_manager.js"></script>
+<script src="/static/js/cad/plan.js"></script>
+<script src="/static/js/cad/unplaced_rooms.js"></script> <!-- НОВЫЙ -->
+
+<!-- МОДУЛИ РАСЧЕТА -->
+<script src="/static/js/modules/balance.js"></script>
+<script src="/static/js/modules/vent.js"></script>
+<script src="/static/js/modules/heat.js"></script>
+<script src="/static/js/modules/gas.js"></script>
+<script src="/static/js/modules/ac.js"></script>
+<script src="/static/js/modules/import.js"></script>
+<script src="/static/js/modules/export.js"></script>
+
+<!-- УТИЛИТЫ -->
+<script src="/static/js/utils/corner_room.js"></script>
+<script src="/static/js/utils/zeta_library.js"></script>
+<script src="/static/js/utils/enthalpy_calc.js"></script>
+<script src="/static/js/utils/city_search.js"></script>
+<script src="/static/js/utils/projects.js"></script>
+<script src="/static/js/utils/random_example.js"></script>
+
 </body>
 </html>

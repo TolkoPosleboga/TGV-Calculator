@@ -5,13 +5,18 @@
         <div class="form-group"><label>Ширина (м)</label><input type="number" step="0.1" id="v_width" class="sync-width" value="4"></div>
         <div class="form-group"><label>Высота (м)</label><input type="number" step="0.1" id="v_height" class="sync-height" value="3"></div>
         <div class="form-group">
-            <label>Город</label>
-            <select id="v_city" class="sync-city"></select>
-        </div>
-        <div class="form-group">
             <label>t снаружи (°C)</label>
             <input type="number" id="v_t_out" readonly value="-32">
             <input type="hidden" id="v_gsop">
+        </div>
+
+        <div class="form-group">
+            <label>Назначение системы</label>
+            <select id="v_system_type">
+                <option value="supply">Приточная (П)</option>
+                <option value="exhaust">Вытяжная (В)</option>
+                <option value="both">Приточно-вытяжная (ПВ)</option>
+            </select>
         </div>
     </div>
 
@@ -30,8 +35,13 @@
                 <option value="office" selected>Офис / Административное</option>
                 <option value="kitchen">Кухня</option>
                 <option value="bathroom">Ванная / Санузел</option>
+                <option value="corridor">Коридор</option>
+                <option value="stairwell">Лестничная клетка</option>
+                <option value="server_room">Серверная</option>
+                <option value="smoking">Курилка</option>
                 <option value="industrial_light">Производство (легкий труд)</option>
                 <option value="industrial_heavy">Производство (тяжелый труд)</option>
+                <option value="sport">Спортивный зал</option>
             </select>
         </div>
         <div class="form-group checkbox" style="margin-top: 0;">
@@ -43,18 +53,6 @@
             <input type="number" step="0.1" id="v_t_in" value="22">
         </div>
 
-        <div class="form-group"><label>Форма воздуховода</label><select id="v_duct_shape"><option value="round">Круглая</option><option value="rect">Прямоугольная</option></select></div>
-        <div class="form-group">
-            <label>Материал воздуховода</label>
-            <select id="v_duct_material">
-                <option value="steel_galv">Сталь оцинкованная</option>
-                <option value="steel_black">Сталь черная</option>
-                <option value="plastic">Пластик (винил)</option>
-                <option value="aluminum_flex">Гибкий алюминий</option>
-                <option value="concrete">Бетон</option>
-                <option value="brick">Кирпич</option>
-            </select>
-        </div>
     </div>
 
     <div class="section-title">Участки воздуховода</div>

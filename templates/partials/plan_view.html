@@ -1,0 +1,54 @@
+<div id="plan-view" class="view">
+    <div class="view-header">
+        <button class="btn-back" onclick="switchView('express')">← Назад к расчетам</button>
+        <h2>🏗️ Планировка здания (CAD)</h2>
+    </div>
+
+    <div style="display: flex; gap: 20px; height: 700px;">
+        <!-- ЛЕВАЯ ЧАСТЬ: Песочница -->
+        <div style="flex: 1; display: flex; flex-direction: column;">
+            <div class="toolbar" style="margin-bottom: 10px;">
+                <div class="toolbar-left">
+                    <button class="btn" style="margin: 0; padding: 8px 15px; width: auto; background: #3b82f6; font-size: 14px;" onclick="addNewFloor()">+ Новый этаж</button>
+                </div>
+                <div class="toolbar-right">
+                    <span style="font-size: 14px; font-weight: 600; color: #475569;">Инструмент: <span id="current-tool-label" style="color: #3b82f6;">Выбор</span></span>
+                </div>
+            </div>
+
+            <!-- СЕРАЯ ОБЛАСТЬ (КАНВАС) -->
+            <div id="plan-canvas" style="position: relative; flex: 1; background: #e2e8f0; border-radius: 12px; overflow: auto; border: 1px solid #cbd5e1;">
+                <div style="position: absolute; top: 15px; left: 15px; background: rgba(255,255,255,0.9); padding: 8px 15px; border-radius: 8px; font-weight: 800; color: #1e293b; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); pointer-events: none;">
+                    <span id="current-floor-name">1 этаж</span>
+                </div>
+                <!-- ВНУТРЕННИЙ СЛОЙ -->
+                <div id="plan-inner" style="position: absolute; top: 50px; left: 50px; min-width: 100%; min-height: 100%;"></div>
+            </div>
+
+            <div id="floor-tabs" style="display: flex; gap: 10px; margin-top: 15px;"></div>
+        </div>
+
+        <!-- ПРАВАЯ ЧАСТЬ: Инструменты и Список комнат -->
+        <div style="width: 280px; display: flex; flex-direction: column; gap: 15px;">
+
+            <!-- Инструменты -->
+            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                <h3 style="font-size: 16px; color: #0f172a; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Инструменты</h3>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button class="btn" id="tool-select" style="margin: 0; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;" onclick="setTool('select')">🖱️ Выбор / Движение</button>
+                    <button class="btn" id="tool-window" style="margin: 0; background: #f8fafc; color: #1e293b; border: 1px solid #e2e8f0;" onclick="setTool('window')">🪟 Окно</button>
+                    <button class="btn" id="tool-door" style="margin: 0; background: #f8fafc; color: #1e293b; border: 1px solid #e2e8f0;" onclick="setTool('door')">🚪 Дверь</button>
+                </div>
+            </div>
+
+            <!-- Неустановленные комнаты -->
+            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); flex: 1; overflow-y: auto;">
+                <h3 style="font-size: 16px; color: #0f172a; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Неустановленные комнаты</h3>
+                <div id="unplaced-rooms-list" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Сюда падают комнаты -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

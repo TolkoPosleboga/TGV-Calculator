@@ -14,6 +14,8 @@ class LocalResistance(BaseModel):
 class DuctSection(BaseModel):
     name: str
     length: float
+    shape: str
+    material: str
     resistances: List[LocalResistance]
 
 class VentRequest(BaseModel):
@@ -28,8 +30,6 @@ class VentRequest(BaseModel):
     t_inside: float
     t_outside: float
     room_type: str
-    duct_shape: str
-    duct_material: str
     recup_efficiency: float
     electricity_tariff: float
     season_days: int
@@ -46,10 +46,9 @@ def calculate_ventilation(data: VentRequest):
             t_inside=data.t_inside, t_outside=data.t_outside, room_type=data.room_type
         )
 
-        duct = vent_math.select_duct(air["L_max_m3h"], data.duct_shape)
         sections_dict = [sec.model_dump() for sec in data.sections]
 
-        pressure = vent_math.calculate_pressure_loss(air["L_max_m3h"], duct, sections_dict, data.duct_material)
+        pressure = vent_math.calculate_pressure_loss(air["L_max_m3h"], sections_dict)
         equipment = vent_math.select_equipment_base(air["L_max_m3h"], pressure, data.t_inside, data.t_outside)
 
         recup = vent_math.calculate_recuperation(
@@ -65,11 +64,10 @@ def calculate_ventilation(data: VentRequest):
 
         acoustics = vent_math.calculate_acoustics(fan_noise, sections_dict, data.distance_m, data.room_type)
 
-        report = vent_math.generate_vent_report(air, duct, pressure, equipment, recup, solutions_data)
+        report = vent_math.generate_vent_report(air, pressure, equipment, recup, solutions_data)
 
         return {
             "air_exchange": air,
-            "duct": duct,
             "pressure_loss": pressure,
             "equipment": equipment,
             "recuperation": recup,

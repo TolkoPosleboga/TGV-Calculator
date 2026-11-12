@@ -1,6 +1,6 @@
 let currentHeatData = null;
-let lastData = { vent: null, heat: null, gas: null };
-let lastResp = { vent: null, heat: null, gas: null };
+let lastData = { vent: null, heat: null, gas: null, ac: null };
+let lastResp = { vent: null, heat: null, gas: null, ac: null };
 
 function captureInitialValues() {
     document.querySelectorAll('input, select').forEach(el => {
@@ -14,6 +14,8 @@ function captureInitialValues() {
 
 function updateFieldStyle(el) {
     if (el.type === 'checkbox') return;
+    if (el.id === 'room-selector' || el.id === 'plan-room-selector' || el.id === 'express-floor-selector' || el.id === 'global_city') return;
+
     if (el.dataset.initial === undefined) return;
     if (el.value !== el.dataset.initial) el.classList.add('edited-field');
     else el.classList.remove('edited-field');
@@ -23,27 +25,60 @@ function switchView(viewId) {
     document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
     const target = document.getElementById(viewId + '-view');
     if (target) target.classList.add('active');
+
     if (viewId === 'bim' && typeof loadProjects === 'function') loadProjects();
+    if (viewId === 'balance' && typeof renderBalanceTable === 'function') renderBalanceTable();
+    if (viewId === 'plan' && typeof renderPlan === 'function') renderPlan();
 }
 
-window.addEventListener('load', () => {
-    captureInitialValues();
-
-    // 1. Восстановление данных
+function applySavedDataToUI() {
     const savedData = JSON.parse(localStorage.getItem('calc_saved_data') || '{}');
+
+    // Сначала сбрасываем поля к дефолтным
+    document.querySelectorAll('input:not([type="checkbox"]), select').forEach(el => {
+        if (el.dataset.initial !== undefined && el.id !== 'room-selector' && el.id !== 'plan-room-selector' && el.id !== 'express-floor-selector' && el.id !== 'global_city') {
+            el.value = el.dataset.initial;
+        }
+    });
+
+    // Применяем сохраненные данные
     for (let id in savedData) {
+        if (id === 'room-selector' || id === 'plan-room-selector' || id === 'express-floor-selector' || id === 'balance_rooms' || id === 'vent_sections' || id === 'global_city') continue;
+
         const el = document.getElementById(id);
         if (!el) continue;
 
         if (el.type === 'checkbox') {
             el.checked = savedData[id] === true || savedData[id] === 'true';
-        } else if (id !== 'vent_sections') {
+            el.dispatchEvent(new Event('change', { bubbles: true })); // <-- ТРИГГЕР ДЛЯ ЧЕКБОКСОВ
+        } else {
             el.value = savedData[id];
             updateFieldStyle(el);
+
+            // ТРИГГЕР ДЛЯ СЕЛЕКТОВ (чтобы сработал onchange, например у типа помещения)
+            if (el.tagName === 'SELECT') {
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
         }
     }
 
-    // 2. Синхронизация габаритов
+    // ВОССТАНАВЛИВАЕМ ГОРОД (новый ключ или старый для совместимости)
+    const globalCity = document.getElementById('global_city');
+    if (globalCity) {
+        const cityVal = savedData['global_city'] || savedData['v_city'];
+        if (cityVal) globalCity.value = cityVal;
+    }
+
+    if (typeof restoreVentSections === 'function') restoreVentSections();
+
+    const g_len = document.getElementById('g_length');
+    if (g_len) g_len.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+window.addEventListener('load', () => {
+    captureInitialValues();
+    applySavedDataToUI();
+
     const syncToggle = document.getElementById('syncToggle');
     if (syncToggle) {
         ['sync-length', 'sync-width', 'sync-height'].forEach(cls => {
@@ -55,60 +90,27 @@ window.addEventListener('load', () => {
                         if (other !== e.target) {
                             other.value = e.target.value;
                             updateFieldStyle(other);
-
-                            const saved = JSON.parse(localStorage.getItem('calc_saved_data') || '{}');
-                            saved[other.id] = other.value;
-                            localStorage.setItem('calc_saved_data', JSON.stringify(saved));
                         }
                     });
                 });
             });
         });
     }
-
-    // 3. Пересчет объема газа
-    const g_len = document.getElementById('g_length');
-    const g_wid = document.getElementById('g_width');
-    const g_hei = document.getElementById('g_room_height');
-    const g_vol = document.getElementById('g_room_volume');
-
-    function updateGasVolume() {
-        if (!g_len || !g_wid || !g_hei || !g_vol) return;
-        const l = parseFloat(g_len.value) || 0;
-        const w = parseFloat(g_wid.value) || 0;
-        const h = parseFloat(g_hei.value) || 0;
-        const vol = l * w * h;
-        if (vol > 0) g_vol.value = vol.toFixed(1);
-    }
-
-    if (g_len) g_len.addEventListener('input', updateGasVolume);
-    if (g_wid) g_wid.addEventListener('input', updateGasVolume);
-    if (g_hei) g_hei.addEventListener('input', updateGasVolume);
-    updateGasVolume();
 });
 
 document.addEventListener('input', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
-        if (e.target.readOnly) return;
-
-        const savedData = JSON.parse(localStorage.getItem('calc_saved_data') || '{}');
-
-        if (e.target.type === 'checkbox') {
-            savedData[e.target.id] = e.target.checked;
-        } else {
-            savedData[e.target.id] = e.target.value;
-            updateFieldStyle(e.target);
-        }
-        localStorage.setItem('calc_saved_data', JSON.stringify(savedData));
+        if (e.target.readOnly || e.target.id === 'room-selector' || e.target.id === 'plan-room-selector' || e.target.id === 'express-floor-selector' || e.target.id === 'global_city') return;
+        updateFieldStyle(e.target);
     }
 });
 
 function clearAll() {
-    if (confirm("Сбросить все поля к заводским значениям?")) {
+    if (confirm("Сбросить все поля текущего помещения к заводским значениям?")) {
         localStorage.removeItem('calc_saved_data');
-        window.history.replaceState({}, document.title, window.location.pathname);
 
         document.querySelectorAll('input, select').forEach(el => {
+            if (el.id === 'room-selector' || el.id === 'plan-room-selector' || el.id === 'express-floor-selector' || el.id === 'global_city') return;
             if (el.type === 'checkbox') {
                 el.checked = (el.id === 'g_has_stove' || el.id === 'syncToggle');
             } else if (el.dataset.initial !== undefined) {
@@ -125,34 +127,18 @@ function clearAll() {
             if (typeof addVentSection === 'function') addVentSection();
         }
 
-        ['vent-results', 'heat-results', 'gas-results'].forEach(id => {
+        ['vent-results', 'heat-results', 'gas-results', 'ac-results'].forEach(id => {
             const el = document.getElementById(id); if(el) el.style.display = 'none';
         });
 
-        ['v-dashboard', 'h-dashboard', 'g-dashboard', 'v-catalog', 'h-catalog', 'g-alerts', 'g-city-info'].forEach(id => {
+        ['v-dashboard', 'h-dashboard', 'g-dashboard', 'ac-dashboard', 'v-catalog', 'h-catalog', 'g-alerts', 'g-city-info', 'ac-catalog'].forEach(id => {
             const el = document.getElementById(id); if(el) el.innerHTML = '';
         });
 
-        const gSafetyCard = document.getElementById('g-safety-card');
-        if (gSafetyCard) gSafetyCard.style.display = 'none';
-
-        ['v_gsop', 'h_gsop', 'g_gsop', 'bim_gsop'].forEach(id => {
-            const el = document.getElementById(id); if (el) el.value = '';
-        });
-
-        document.querySelectorAll('select.sync-city').forEach(el => { el.value = ''; });
-
-        const g_len = document.getElementById('g_length');
-        const g_wid = document.getElementById('g_width');
-        const g_hei = document.getElementById('g_room_height');
-        const g_vol = document.getElementById('g_room_volume');
-        if (g_len && g_wid && g_hei && g_vol) {
-            g_vol.value = (parseFloat(g_len.value) * parseFloat(g_wid.value) * parseFloat(g_hei.value)).toFixed(1);
+        if (typeof saveActiveRoomData === 'function') {
+            saveActiveRoomData();
+            saveRoomsToStorage();
         }
-
-        lastData = { vent: null, heat: null, gas: null };
-        lastResp = { vent: null, heat: null, gas: null };
-        currentHeatData = null;
     }
 }
 
@@ -160,7 +146,7 @@ function shareLink() {
     const savedData = localStorage.getItem('calc_saved_data') || '{}';
     const encoded = btoa(encodeURIComponent(savedData));
     const url = `${window.location.origin}/?data=${encoded}`;
-    navigator.clipboard.writeText(url).then(() => alert("Ссылка скопирована!"));
+    navigator.clipboard.writeText(url).then(() => alert("Ссылка на текущее помещение скопирована!"));
 }
 
 function switchTab(tabId) {

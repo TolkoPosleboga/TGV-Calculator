@@ -36,13 +36,22 @@ async function calcGas() {
 
         document.getElementById('g-city-info').innerHTML = `<p><b>Оператор:</b> ${city.gas_operator}</p><p><b>Телефон:</b> ${city.gas_phone} | <b>Email:</b> ${city.gas_email}</p><p><b>Сайт:</b> <a href="${city.gas_site}" target="_blank">${city.gas_site}</a></p><p><b>Стоимость подключения:</b> <span style="color:var(--success); font-weight:bold;">${city.connection_cost}</span></p><p style="font-size: 13px; color: var(--muted); margin-top: 10px;">${city.note}</p>`;
 
+        // Динамический размер шрифта для дымохода
+        const chimneyFontSize = res.d_chimney_mm > 0 ? '22px' : '18px';
+
         document.getElementById('g-dashboard').innerHTML = `
             <div class="result-box"><h4>Расход газа</h4><div class="value">${res.v_total} <span class="unit">м³/ч</span></div></div>
             <div class="result-box best"><h4>Счётчик</h4><div class="value">${res.meter}</div></div>
             <div class="result-box"><h4>Диаметр трубы</h4><div class="value">${res.pipe}</div></div>
             <div class="result-box"><h4>Скорость газа</h4><div class="value">${res.velocity} <span class="unit">м/с</span></div></div>
             <div class="result-box"><h4>Потери давления</h4><div class="value">${res.p_total} <span class="unit">Па</span></div></div>
-            <div class="result-box"><h4>Дымоход</h4><div class="value">${res.d_chimney_mm > 0 ? res.d_chimney_mm : 'Коаксиальный'} <span class="unit">${res.d_chimney_mm > 0 ? 'мм' : ''}</span></div></div>
+            <div class="result-box">
+                <h4>Дымоход</h4>
+                <div class="value" style="font-size: ${chimneyFontSize}; line-height: 1.2;">
+                    ${res.d_chimney_mm > 0 ? res.d_chimney_mm : 'Коаксиальный'}
+                    <span class="unit">${res.d_chimney_mm > 0 ? 'мм' : ''}</span>
+                </div>
+            </div>
         `;
 
         const safetyCard = document.getElementById('g-safety-card');
@@ -52,26 +61,24 @@ async function calcGas() {
             safetyGrid.innerHTML = res.safety_items.map(s => `<div class="sol-card"><div class="sol-title">${s.model}</div><div class="sol-brand">${s.brand} | ${s.type}</div><div class="sol-price">${s.price_rub.toLocaleString('ru-RU')} ₽</div><a href="${s.url}" target="_blank" class="sol-link">Купить</a></div>`).join('');
         } else { safetyCard.style.display = 'none'; }
 
-        document.getElementById('g-methodology').innerHTML = `
+        const methodologyContainer = document.getElementById('g-methodology');
+        methodologyContainer.innerHTML = `
             <div class="formula-block">
                 <b>1. Расчет расхода газа на котел:</b><br>
-                V_котла = Q_котла / (Q_теплоты_сгорания × η_котла)<br>
-                Q_тепл = 9.45 кВт·ч/м³ (теплота сгорания природного газа)<br>
-                η = 0.92 (КПД котла 92%)<br>
-                V_котла = ${data.boiler_power_kw} / (9.45 × 0.92) = <b>${res.v_boiler} м³/ч</b>
+                $$ V_{\\text{котла}} = \\frac{Q_{\\text{котла}}}{Q_{\\text{теплоты сгорания}} \\times \\eta_{\\text{котла}}} $$
+                $$ V_{\\text{котла}} = \\frac{${data.boiler_power_kw}}{9.45 \\times 0.92} = \\mathbf{${res.v_boiler} \\text{ м}^3/\\text{ч}} $$
                 <span class="norm-ref">СП 62.13330.2011</span>
             </div>
             <div class="formula-block">
                 <b>2. Расход газа на плиту и колонку:</b><br>
                 Плита 4-конфорочная: 1.2 м³/ч (${data.has_stove ? 'Включена' : 'Отключена'})<br>
                 Колонка проточная: 2.5 м³/ч (${data.has_water_heater ? 'Включена' : 'Отключена'})<br>
-                <b>Общий расход:</b> V_итог = V_котла + V_плиты + V_колонки = <b>${res.v_total} м³/ч</b>
+                $$ V_{\\text{итог}} = V_{\\text{котла}} + V_{\\text{плиты}} + V_{\\text{колонки}} = \\mathbf{${res.v_total} \\text{ м}^3/\\text{ч}} $$
             </div>
             <div class="formula-block">
                 <b>3. Подбор газового счетчика:</b><br>
                 Требуемый пропускной способности ≥ ${res.v_total} м³/ч<br>
                 Выбран счетчик, ближайший по типоразмеру: <b>${res.meter}</b><br>
-                (Диапазон: от минимального до максимального расхода)
             </div>
             <div class="formula-block">
                 <b>4. Аэродинамический расчет газопровода (Диаметр):</b><br>
@@ -79,14 +86,10 @@ async function calcGas() {
             </div>
             <div class="formula-block" style="background: #eff6ff; border-left-color: #2563eb;">
                 <b>5. Гидравлический расчет (Скорость и потери):</b><br>
-                1. Скорость: v = V / (3600 × F)<br>
-                F (площадь трубы) рассчитана по внутреннему диаметру Ду.<br>
-                v = ${res.v_total} / (3600 × F) = <b>${res.velocity} м/с</b><br>
-                2. Потери на трение: ΔP_тр = λ × (L/d) × (ρv²/2)<br>
-                ΔP_тр = ${res.p_friction} Па (λ - коэфф. трения, ρ - плотность газа 0.73 кг/м³)<br>
-                3. Потери на местных сопротивлениях: ΔP_мест = Σζ × (ρv²/2)<br>
-                ΔP_мест = ${data.local_zeta} × (0.73 × ${res.velocity}² / 2) = <b>${res.p_local} Па</b><br>
-                4. <b>Итого потери:</b> ${res.p_friction} + ${res.p_local} = <b>${res.p_total} Па</b>
+                $$ v = \\frac{V}{3600 \\times F} = \\mathbf{${res.velocity} \\text{ м/с}} $$
+                $$ \\Delta P_{\\text{тр}} = \\lambda \\times \\frac{L}{d} \\times \\frac{\\rho v^2}{2} = \\mathbf{${res.p_friction} \\text{ Па}} $$
+                $$ \\Delta P_{\\text{мест}} = \\sum \\zeta \\times \\frac{\\rho v^2}{2} = \\mathbf{${res.p_local} \\text{ Па}} $$
+                $$ \\Delta P_{\\text{итог}} = \\Delta P_{\\text{тр}} + \\Delta P_{\\text{мест}} = \\mathbf{${res.p_total} \\text{ Па}} $$
                 <span class="norm-ref">СП 42-101-2003 (Дарси-Вейсбах)</span>
             </div>
             <div class="formula-block">
@@ -104,9 +107,20 @@ async function calcGas() {
             </div>
         `;
 
+        if (window.renderMathInElement) {
+            renderMathInElement(methodologyContainer, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                    {left: '\\(', right: '\\)', display: false},
+                    {left: '\\[', right: '\\]', display: true}
+                ],
+                throwOnError: false
+            });
+        }
+
         document.getElementById('g-report').textContent = `============================================================\nОТЧЁТ ПО ГАЗОСНАБЖЕНИЮ\n============================================================\nГород: ${city.name}\nОператор: ${city.gas_operator}\nТелефон: ${city.gas_phone}\n\nРАСХОД ГАЗА:\nКотёл: ${res.v_boiler} м³/ч\nОбщий расход: ${res.v_total} м³/ч\n\nГИДРАВЛИКА:\nТруба: ${res.pipe}\nСкорость газа: ${res.velocity} м/с\nПотери давления: ${res.p_total} Па\n\nВЕНТИЛЯЦИЯ И ДЫМОХОД:\nТип камеры: ${data.combustion_chamber === 'open' ? 'Открытая' : 'Закрытая'}\nДиаметр дымохода: ${res.d_chimney_mm > 0 ? res.d_chimney_mm + ' мм' : 'Коаксиальный'}\nВытяжка: ${res.v_exhaust} м³/ч\nПриток: ${res.v_supply} м³/ч`.trim();
 
-        // ИСПРАВЛЕНО: 'gas-results' вместо 'g-results'
         const resContainer = document.getElementById('gas-results');
         if (resContainer) {
             resContainer.scrollIntoView({ behavior: 'smooth' });

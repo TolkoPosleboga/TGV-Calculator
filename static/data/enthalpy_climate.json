@@ -1,0 +1,218 @@
+[
+  {
+    "name": "Астрахань",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 63.6
+  },
+  {
+    "name": "Благовещенск",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 64.1
+  },
+  {
+    "name": "Владивосток",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 62.1
+  },
+  {
+    "name": "Владикавказ",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 61.8
+  },
+  {
+    "name": "Волгоград",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 56.2
+  },
+  {
+    "name": "Воронеж",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 58.0
+  },
+  {
+    "name": "Грозный",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 65.1
+  },
+  {
+    "name": "Екатеринбург",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 53.5
+  },
+  {
+    "name": "Иркутск",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 53.9
+  },
+  {
+    "name": "Казань",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 57.0
+  },
+  {
+    "name": "Калининград",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 55.0
+  },
+  {
+    "name": "Краснодар",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 64.6
+  },
+  {
+    "name": "Красноярск",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 54.7
+  },
+  {
+    "name": "Минеральные Воды",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 62.1
+  },
+  {
+    "name": "Москва",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 57.8
+  },
+  {
+    "name": "Нижний Новгород",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 57.0
+  },
+  {
+    "name": "Новосибирск",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 54.6
+  },
+  {
+    "name": "Омск",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 54.3
+  },
+  {
+    "name": "Оренбург",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 56.1
+  },
+  {
+    "name": "Пермь",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 54.8
+  },
+  {
+    "name": "Петропавловск-Камчатский",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 41.2
+  },
+  {
+    "name": "Ростов-на-Дону",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 60.6
+  },
+  {
+    "name": "Санкт-Петербург",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 56.5
+  },
+  {
+    "name": "Саратов",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 56.6
+  },
+  {
+    "name": "Севастополь",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 67.3
+  },
+  {
+    "name": "Симферополь",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 56.3
+  },
+  {
+    "name": "Сочи",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 73.8
+  },
+  {
+    "name": "Ставрополь",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 58.8
+  },
+  {
+    "name": "Тюмень",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 55.1
+  },
+  {
+    "name": "Уфа",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 56.9
+  },
+  {
+    "name": "Феодосия",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 65.9
+  },
+  {
+    "name": "Хабаровск",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 64.0
+  },
+  {
+    "name": "Челябинск",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 52.5
+  },
+  {
+    "name": "Элиста",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 61.9
+  },
+  {
+    "name": "Южно-Сахалинск",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 56.0
+  },
+  {
+    "name": "Ялта",
+    "enthalpy_cold": null,
+    "enthalpy_transition": 26.5,
+    "enthalpy_warm": 65.2
+  }
+]

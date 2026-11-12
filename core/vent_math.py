@@ -2,8 +2,16 @@ import math
 from typing import Dict, Any, List
 
 STANDARD_ROUND_DIAMETERS = [100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250]
-AIR_NORM_PER_PERSON = {"office": 40.0, "classroom": 40.0, "industrial": 30.0, "residential": 30.0}
-AIR_CHANGE_RATE = {"office": 2.0, "classroom": 2.0, "industrial": 1.5, "residential": 0.35}
+AIR_NORM_PER_PERSON = {
+    "office": 40.0, "classroom": 40.0, "industrial": 30.0,
+    "residential": 30.0, "sport": 80.0, "corridor": 0.0,
+    "stairwell": 0.0, "server_room": 30.0, "smoking": 100.0
+}
+AIR_CHANGE_RATE = {
+    "office": 2.0, "classroom": 2.0, "industrial": 1.5,
+    "residential": 0.35, "sport": 2.0, "corridor": 1.0,
+    "stairwell": 0.5, "server_room": 2.0, "smoking": 10.0
+}
 EQUIPMENT_RESISTANCE_PA = 230.0
 SAFETY_FACTOR_PRESSURE = 1.15
 SAFETY_FACTOR_FLOW = 1.10
@@ -59,7 +67,7 @@ def select_duct(L: float, shape: str) -> Dict[str, Any]:
         v = L / 3600.0 / area
         return {"shape": "round", "diameter_mm": d_sel, "area_m2": round(area, 4), "velocity_ms": round(v, 2),
                 "equivalent_diameter_m": round(d_sel / 1000.0, 4)}
-    else:
+    elif shape == "rect":
         b = math.sqrt(area_req / 2.0)
         a = 2.0 * b
         a_mm = math.ceil(a * 1000 / 50) * 50
@@ -71,28 +79,51 @@ def select_duct(L: float, shape: str) -> Dict[str, Any]:
         d_eq = 2.0 * (a_mm / 1000.0) * (b_mm / 1000.0) / ((a_mm / 1000.0) + (b_mm / 1000.0))
         return {"shape": "rect", "width_mm": a_mm, "height_mm": b_mm, "aspect_ratio": round(a_mm / b_mm, 2),
                 "area_m2": round(area, 4), "velocity_ms": round(v, 2), "equivalent_diameter_m": round(d_eq, 4)}
-
-
-def calculate_pressure_loss(L: float, duct: Dict, sections: List[Dict], duct_material: str) -> Dict[str, Any]:
-    v = duct["velocity_ms"]
-    d_eq = duct["equivalent_diameter_m"]
-    Re = v * d_eq / AIR_KINEMATIC_VISCOSITY
-
-    roughness_mm = DUCT_MATERIALS_ROUGHNESS.get(duct_material, 0.1)
-    roughness_m = roughness_mm / 1000.0
-
-    if Re > 0:
-        lam = 0.11 * ((roughness_m / d_eq) + (68.0 / Re)) ** 0.25
     else:
-        lam = 0.02
+        b = math.sqrt(area_req / 2.0)
+        a = 2.0 * b
+        a_mm = math.ceil(a * 1000 / 50) * 50
+        b_mm = math.ceil(b * 1000 / 50) * 50
+        if a_mm / b_mm > 3.0:
+            b_mm = math.ceil(a_mm / 3.0 / 50) * 50
+        a_m = a_mm / 1000.0
+        b_m = b_mm / 1000.0
+        area = math.pi * a_m * b_m / 4.0
+        perimeter = math.pi * (a_m + b_m) / 2.0
+        d_h = 4.0 * area / perimeter
+        v = L / 3600.0 / area
+        return {"shape": "oval", "width_mm": a_mm, "height_mm": b_mm, "area_m2": round(area, 4),
+                "velocity_ms": round(v, 2),
+                "equivalent_diameter_m": round(d_h, 4)}
 
-    dyn = AIR_DENSITY * v ** 2 / 2.0
 
+def calculate_pressure_loss(L: float, sections: List[Dict]) -> Dict[str, Any]:
     total_friction = 0.0
     total_local = 0.0
     sections_result = []
+    primary_duct = None
 
     for sec in sections:
+        shape = sec.get("shape", "round")
+        material = sec.get("material", "steel_galv")
+        roughness_mm = DUCT_MATERIALS_ROUGHNESS.get(material, 0.1)
+        roughness_m = roughness_mm / 1000.0
+
+        duct_sec = select_duct(L, shape)
+
+        if primary_duct is None:
+            primary_duct = duct_sec
+
+        v = duct_sec["velocity_ms"]
+        d_eq = duct_sec["equivalent_diameter_m"]
+        Re = v * d_eq / AIR_KINEMATIC_VISCOSITY
+
+        if Re > 0:
+            lam = 0.11 * ((roughness_m / d_eq) + (68.0 / Re)) ** 0.25
+        else:
+            lam = 0.02
+
+        dyn = AIR_DENSITY * v ** 2 / 2.0
         length = sec.get("length", 0.0)
         sec_total_zeta = sum(res.get("qty", 1) * res.get("zeta", 0.0) for res in sec.get("resistances", []))
 
@@ -104,6 +135,13 @@ def calculate_pressure_loss(L: float, duct: Dict, sections: List[Dict], duct_mat
 
         sections_result.append({
             "name": sec.get("name", "Участок"),
+            "shape": shape,
+            "material": material,
+            "roughness_mm": roughness_mm,
+            "diameter_mm": duct_sec.get("diameter_mm", 0),
+            "width_mm": duct_sec.get("width_mm", 0),
+            "height_mm": duct_sec.get("height_mm", 0),
+            "velocity_ms": v,
             "length": length,
             "total_zeta": round(sec_total_zeta, 2),
             "friction_pa": round(fr, 2),
@@ -113,10 +151,15 @@ def calculate_pressure_loss(L: float, duct: Dict, sections: List[Dict], duct_mat
     total_before = total_friction + total_local + EQUIPMENT_RESISTANCE_PA
     total = total_before * SAFETY_FACTOR_PRESSURE
 
+    if primary_duct is None:
+        primary_duct = select_duct(L, "round")
+
     return {
-        "total_loss_pa": round(total, 2), "friction_loss_pa": round(total_friction, 2),
-        "local_loss_pa": round(total_local, 2), "sections_breakdown": sections_result,
-        "roughness_mm": roughness_mm, "lambda": round(lam, 4)
+        "total_loss_pa": round(total, 2),
+        "friction_loss_pa": round(total_friction, 2),
+        "local_loss_pa": round(total_local, 2),
+        "sections_breakdown": sections_result,
+        "primary_duct": primary_duct
     }
 
 
@@ -139,7 +182,7 @@ def calculate_recuperation(L: float, t_inside: float, t_outside: float, efficien
     energy_saved_kwh = q_saved_kw * hours
     money_saved = energy_saved_kwh * electricity_tariff
     frost_warning = "При температуре ниже -15°C роторный/пластинчатый рекуператор может обмерзать. Требуется байпас или предварительный подогрев." if (
-            t_outside < -15 and efficiency_pct > 60) else ""
+                t_outside < -15 and efficiency_pct > 60) else ""
     return {"q_saved_kw": round(q_saved_kw, 2), "energy_saved_kwh": round(energy_saved_kwh, 0),
             "money_saved_rub": round(money_saved, 0), "frost_warning": frost_warning}
 
@@ -191,16 +234,20 @@ def find_solutions(L: float, P: float, Q: float) -> Dict[str, Any]:
     }
 
 
-def generate_vent_report(air: Dict, duct: Dict, pressure: Dict, equipment: Dict, recup: Dict = None,
+def generate_vent_report(air: Dict, pressure: Dict, equipment: Dict, recup: Dict = None,
                          solutions_data: Dict = None) -> str:
-    duct_str = f"{duct.get('diameter_mm', '')} мм" if duct[
-                                                          'shape'] == 'round' else f"{duct['width_mm']}×{duct['height_mm']} мм"
+    duct = pressure.get("primary_duct", {})
+    if duct.get('shape') == 'round':
+        duct_str = f"{duct.get('diameter_mm', '')} мм"
+    else:
+        duct_str = f"{duct.get('width_mm')}×{duct.get('height_mm')} мм (Овал)" if duct.get(
+            'shape') == 'oval' else f"{duct.get('width_mm')}×{duct.get('height_mm')} мм"
+
     lines = [
         "=" * 60, "ОТЧЁТ ПО РАСЧЁТУ ВЕНТИЛЯЦИИ", "=" * 60,
         f"Объём помещения: {air['volume_m3']} м³", f"Расход воздуха: {air['L_max_m3h']} м³/ч",
-        f"Сечение воздуховода: {duct_str}", f"Скорость в канале: {duct['velocity_ms']} м/с",
-        f"Шероховатость материала: {pressure.get('roughness_mm', 0.1)} мм (λ = {pressure.get('lambda', 0.02)})",
-        f"Потери давления: {pressure['total_loss_pa']} Па",
+        f"Сечение 1-го участка: {duct_str}", f"Скорость в 1-м участке: {duct.get('velocity_ms', 0)} м/с",
+        f"Суммарные потери давления: {pressure['total_loss_pa']} Па",
         f"Требуемый вентилятор: {equipment['fan_flow_m3h']} м³/ч, {equipment['fan_pressure_pa']} Па",
         f"Мощность нагрева (калорифер): {equipment['heater_power_kw']} кВт",
     ]

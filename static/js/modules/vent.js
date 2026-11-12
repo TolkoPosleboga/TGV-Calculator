@@ -5,7 +5,9 @@ function collectSectionsData() {
     const sections = [];
     sectionBoxes.forEach(box => {
         const name = box.querySelector('.sec-name').value || 'Участок';
-        const len = parseFloat(box.querySelector('.sec-length').value) || 0;
+        const length = parseFloat(box.querySelector('.sec-length').value) || 0;
+        const shape = box.querySelector('.sec-shape').value || 'round';
+        const material = box.querySelector('.sec-material').value || 'steel_galv';
         const resRows = box.querySelectorAll('.resistance-row');
         const resistances = [];
         resRows.forEach(r => {
@@ -14,7 +16,7 @@ function collectSectionsData() {
             const zeta = parseFloat(r.querySelector('.res-zeta').value) || 0;
             resistances.push({ type, qty, zeta });
         });
-        sections.push({ name, length: len, resistances });
+        sections.push({ name, length, shape, material, resistances });
     });
     return sections;
 }
@@ -36,35 +38,54 @@ function restoreVentSections() {
 
     if (sections && sections.length > 0) {
         sections.forEach(sec => {
-            addVentSection(sec.name, sec.length, sec.resistances);
+            addVentSection(sec.name, sec.length, sec.shape, sec.material, sec.resistances);
         });
     } else {
         addVentSection();
     }
 }
 
-function addVentSection(name = "", length = 10, resistances = null) {
+function addVentSection(name = "", length = 10, shape = "round", material = "steel_galv", resistances = null) {
     sectionCounter++;
     const container = document.getElementById('vent-sections-container');
     const div = document.createElement('div');
     div.className = 'vent-section-box';
     div.id = `section-${sectionCounter}`;
 
-    const secName = name || `Участок ${sectionCounter}`;
+    const secName = name || "Участок";
 
     div.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <h4 style="margin: 0; color: #0f172a;">${secName}</h4>
             <button class="btn" style="width: auto; padding: 5px 10px; background: #ef4444; margin: 0;" onclick="this.closest('.vent-section-box').remove(); saveVentSections();">Удалить участок</button>
         </div>
-        <div class="form-grid" style="margin-bottom: 15px;">
+        <div class="form-grid" style="margin-bottom: 15px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
             <div class="form-group">
                 <label>Название участка</label>
-                <input type="text" class="sec-name" value="${secName}" oninput="saveVentSections()">
+                <input type="text" class="sec-name" value="${secName}" oninput="this.closest('.vent-section-box').querySelector('h4').textContent = this.value || 'Участок'; saveVentSections();">
             </div>
             <div class="form-group">
                 <label>Длина участка (м)</label>
                 <input type="number" step="0.1" class="sec-length" value="${length}" oninput="saveVentSections()">
+            </div>
+            <div class="form-group">
+                <label>Форма сечения</label>
+                <select class="sec-shape" onchange="saveVentSections()">
+                    <option value="round" ${shape === 'round' ? 'selected' : ''}>Круглая</option>
+                    <option value="rect" ${shape === 'rect' ? 'selected' : ''}>Прямоугольная</option>
+                    <option value="oval" ${shape === 'oval' ? 'selected' : ''}>Овальная</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Материал</label>
+                <select class="sec-material" onchange="saveVentSections()">
+                    <option value="steel_galv" ${material === 'steel_galv' ? 'selected' : ''}>Оцинковка</option>
+                    <option value="steel_black" ${material === 'steel_black' ? 'selected' : ''}>Черная сталь</option>
+                    <option value="plastic" ${material === 'plastic' ? 'selected' : ''}>Пластик</option>
+                    <option value="aluminum_flex" ${material === 'aluminum_flex' ? 'selected' : ''}>Гибкий алюминий</option>
+                    <option value="concrete" ${material === 'concrete' ? 'selected' : ''}>Бетон</option>
+                    <option value="brick" ${material === 'brick' ? 'selected' : ''}>Кирпич</option>
+                </select>
             </div>
         </div>
 
@@ -147,6 +168,8 @@ async function calcVent() {
         return {
             name: sec.name,
             length: sec.length,
+            shape: sec.shape,
+            material: sec.material,
             resistances: sec.resistances.map(r => ({
                 name: ZETA_LIBRARY[r.type] ? ZETA_LIBRARY[r.type].name : 'Элемент',
                 qty: r.qty,
@@ -165,8 +188,6 @@ async function calcVent() {
         heat_gain_kw: heat_gain, moisture_gain_g_h: moisture, hazard_g_h: hazard, mpc_mg_m3: mpc,
         t_inside: t_in, t_outside: t_out,
         room_type: document.getElementById('v_room_type')?.value || 'office',
-        duct_shape: document.getElementById('v_duct_shape')?.value || 'round',
-        duct_material: document.getElementById('v_duct_material')?.value || 'steel_galv',
         recup_efficiency: parseFloat(recup_eff) || 0,
         electricity_tariff: parseFloat(tariff) || 5.5,
         season_days: parseInt(season) || 210,
@@ -182,6 +203,11 @@ async function calcVent() {
             throw new Error(errData.detail || 'Ошибка сервера');
         }
         const r = await resp.json(); lastResp.vent = r;
+
+        const systemType = document.getElementById('v_system_type')?.value || 'supply';
+        if (typeof updateRoomBalance === 'function') {
+            updateRoomBalance(r.air_exchange.L_max_m3h, systemType);
+        }
 
         let recupHtml = '';
         if (r.recuperation && r.recuperation.q_saved_kw > 0) {
@@ -239,10 +265,16 @@ async function calcVent() {
             </div>
         `;
 
-        const ductTitle = r.duct.shape === 'round' ? 'Диаметр' : 'Сечение';
+        const duct = r.pressure_loss.primary_duct;
+        const ductTitle = duct.shape === 'round' ? 'Диаметр (1 уч.)' : 'Сечение (1 уч.)';
+        let ductDisplay = '';
+        if (duct.shape === 'round') ductDisplay = duct.diameter_mm;
+        else if (duct.shape === 'oval') ductDisplay = `Овал ${duct.width_mm}×${duct.height_mm}`;
+        else ductDisplay = `${duct.width_mm}×${duct.height_mm}`;
+
         document.getElementById('v-dashboard').innerHTML = `
             <div class="result-box"><h4>Расход воздуха</h4><div class="value">${r.air_exchange.L_max_m3h} <span class="unit">м³/ч</span></div></div>
-            <div class="result-box"><h4>${ductTitle}</h4><div class="value">${r.duct.shape === 'round' ? r.duct.diameter_mm : r.duct.width_mm+'×'+r.duct.height_mm} <span class="unit">мм</span></div></div>
+            <div class="result-box"><h4>${ductTitle}</h4><div class="value">${ductDisplay} <span class="unit">мм</span></div></div>
             <div class="result-box"><h4>Потери</h4><div class="value">${r.pressure_loss.total_loss_pa} <span class="unit">Па</span></div></div>
             <div class="result-box"><h4>Нагрев</h4><div class="value">${r.equipment.heater_power_kw} <span class="unit">кВт</span></div></div>
             ${recupHtml}
@@ -253,15 +285,32 @@ async function calcVent() {
         let recupMethodology = '';
         if (r.recuperation && r.recuperation.q_saved_kw > 0) {
             let frostWarn = r.recuperation.frost_warning ? `<div class="warn-box" style="margin-top:10px;">⚠️ ${r.recuperation.frost_warning}</div>` : '';
-            recupMethodology = `<div class="formula-block" style="background: #f0fdf4; border-left-color: #22c55e;"><b>7. Рекуперация:</b> Q_экон = L × ρ × c × Δt_нар × КПД / 3600 = ${r.air_exchange.L_max_m3h} × 1.2 × 1.005 × ${r.air_exchange.delta_t} × ${(data.recup_efficiency/100).toFixed(2)} / 3600 = <b>${r.recuperation.q_saved_kw} кВт</b><br>Энергия за сезон = <b>${r.recuperation.energy_saved_kwh} кВт*ч</b><br>Экономия = <b>${r.recuperation.money_saved_rub} руб.</b>${frostWarn}</div>`;
+            recupMethodology = `
+                <div class="formula-block" style="background: #f0fdf4; border-left-color: #22c55e;">
+                    <b>7. Рекуперация:</b><br>
+                    $$ Q_{\\text{экон}} = \\frac{L \\times \\rho \\times c \\times \\Delta t_{\\text{нар}} \\times \\text{КПД}}{3600} $$
+                    $$ Q_{\\text{экон}} = \\frac{${r.air_exchange.L_max_m3h} \\times 1.2 \\times 1.005 \\times ${r.air_exchange.delta_t} \\times ${(data.recup_efficiency/100).toFixed(2)}}{3600} = \\mathbf{${r.recuperation.q_saved_kw} \\text{ кВт}} $$
+                    Энергия за сезон = <b>${r.recuperation.energy_saved_kwh} кВт*ч</b><br>
+                    Экономия = <b>${r.recuperation.money_saved_rub} руб.</b>${frostWarn}
+                </div>`;
         }
 
         let sectionsTable = '';
-        r.pressure_loss.sections_breakdown.forEach(s => {
-            sectionsTable += `<tr><td>${s.name}</td><td>${s.length} м</td><td>${s.total_zeta}</td><td>${s.friction_pa} Па</td><td>${s.local_pa} Па</td></tr>`;
-        });
+        const matNames = {steel_galv: 'Оцинк.', steel_black: 'Черн.', plastic: 'Пласт.', aluminum_flex: 'Гибк.', concrete: 'Бетон', brick: 'Кирпич'};
 
-        const matNames = {steel_galv: 'Сталь оцинкованная', steel_black: 'Сталь черная', plastic: 'Пластик', aluminum_flex: 'Гибкий алюминий', concrete: 'Бетон', brick: 'Кирпич'};
+        r.pressure_loss.sections_breakdown.forEach(s => {
+            let shapeStr = s.shape === 'round' ? `Ø${s.diameter_mm}` : `${s.width_mm}×${s.height_mm}`;
+            sectionsTable += `<tr>
+                <td>${s.name}</td>
+                <td>${shapeStr} мм</td>
+                <td>${matNames[s.material] || s.material} (Δ${s.roughness_mm})</td>
+                <td>${s.length} м</td>
+                <td>${s.velocity_ms} м/с</td>
+                <td>${s.total_zeta}</td>
+                <td>${s.friction_pa} Па</td>
+                <td>${s.local_pa} Па</td>
+            </tr>`;
+        });
 
         let acousticsMethodology = '';
         if (r.acoustics) {
@@ -290,7 +339,8 @@ async function calcVent() {
             `;
         }
 
-        document.getElementById('v-methodology').innerHTML = `
+        const methodologyContainer = document.getElementById('v-methodology');
+        methodologyContainer.innerHTML = `
             <div class="formula-block">
                 <b>1. Расчет расхода (максимум из 5 параметров):</b><br>
                 По людям: ${r.air_exchange.L_people_m3h} м³/ч<br>
@@ -300,27 +350,34 @@ async function calcVent() {
                 По вредностям: ${r.air_exchange.L_hazard_m3h} м³/ч<br>
                 <b>Итоговый расход: ${r.air_exchange.L_max_m3h} м³/ч</b> (Определяющий фактор: ${r.air_exchange.decisive_factor})
             </div>
-            <div class="formula-block">
-                <b>2. Аэродинамика:</b><br>
-                Площадь сечения: F = L / (3600 × 5 м/с) = ${r.air_exchange.L_max_m3h} / 18000 = ${(r.air_exchange.L_max_m3h / 18000).toFixed(4)} м²<br>
-                Принят: <b>${r.duct.shape === 'round' ? 'Ø' + r.duct.diameter_mm + ' мм' : r.duct.width_mm + '×' + r.duct.height_mm + ' мм'}</b><br>
-                Скорость в канале: <b>${r.duct.velocity_ms} м/с</b>
-            </div>
             <div class="formula-block" style="background: #eff6ff; border-left-color: #2563eb;">
-                <b>3. Потери давления по участкам:</b><br>
-                Материал: <b>${matNames[data.duct_material] || 'Сталь'}</b> (шероховатость Δ = ${r.pressure_loss.roughness_mm} мм, λ = ${r.pressure_loss.lambda})<br>
-                <table style="width: 100%; font-size: 12px; margin-bottom: 10px;">
-                    <tr style="background: #e2e8f0;"><th>Участок</th><th>Длина</th><th>Σζ</th><th>Трение</th><th>Местные</th></tr>
+                <b>2. Потери давления по участкам:</b><br>
+                <table style="width: 100%; font-size: 12px; margin-bottom: 10px; margin-top: 10px;">
+                    <tr style="background: #e2e8f0;">
+                        <th>Участок</th><th>Размер</th><th>Материал (Δ)</th><th>Длина</th><th>Скорость</th><th>Σζ</th><th>Трение</th><th>Местные</th>
+                    </tr>
                     ${sectionsTable}
                 </table>
-                ΔP_трение = ${r.pressure_loss.friction_loss_pa} Па<br>
-                ΔP_мест = ${r.pressure_loss.local_loss_pa} Па<br>
+                $$ \\Delta P_{\\text{трение}} = \\sum \\left( \\lambda \\times \\frac{L}{d} \\times \\frac{\\rho v^2}{2} \\right) = \\mathbf{${r.pressure_loss.friction_loss_pa} \\text{ Па}} $$
+                $$ \\Delta P_{\\text{мест}} = \\sum \\left( \\zeta \\times \\frac{\\rho v^2}{2} \\right) = \\mathbf{${r.pressure_loss.local_loss_pa} \\text{ Па}} $$
                 ΔP_оборуд = 230 Па (фильтр + калорифер)<br>
-                Запас 15%: (${r.pressure_loss.friction_loss_pa} + ${r.pressure_loss.local_loss_pa} + 230) × 1.15 = <b>${r.pressure_loss.total_loss_pa} Па</b>
+                $$ \\Delta P_{\\text{общ}} = (\\Delta P_{\\text{тр}} + \\Delta P_{\\text{мест}} + 230) \\times 1.15 = \\mathbf{${r.pressure_loss.total_loss_pa} \\text{ Па}} $$
             </div>
             ${recupMethodology}
             ${acousticsMethodology}
         `;
+
+        if (window.renderMathInElement) {
+            renderMathInElement(methodologyContainer, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                    {left: '\\(', right: '\\)', display: false},
+                    {left: '\\[', right: '\\]', display: true}
+                ],
+                throwOnError: false
+            });
+        }
 
         document.getElementById('v-report').textContent = r.report;
 

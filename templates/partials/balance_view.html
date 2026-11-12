@@ -1,0 +1,35 @@
+<div id="balance-view" class="view">
+    <div class="view-header">
+        <button class="btn-back" onclick="switchView('express')">← Назад к расчетам</button>
+        <h2>⚖️ Сводный воздушный баланс</h2>
+    </div>
+
+    <div class="card">
+        <div class="section-title" style="margin-top:0;">Воздушный баланс здания</div>
+        <p style="font-size: 14px; color: #64748b; margin-bottom: 15px;">Здесь собраны все помещения, которые вы добавили. Укажите приток и вытяжку (или они подтянутся автоматически, если вы считали вентиляцию), и калькулятор проверит баланс.</p>
+
+        <div style="overflow-x: auto; margin-bottom: 20px;">
+            <table class="balance-table" style="width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <thead>
+                    <tr style="background: #f8fafc; color: #475569; text-align: left;">
+                        <th style="padding: 12px; width: 40px; text-align: center;">№</th>
+                        <th style="padding: 12px;">Наименование помещения</th>
+                        <th style="padding: 12px; width: 150px;">Приток (м³/ч)</th>
+                        <th style="padding: 12px; width: 150px;">Вытяжка (м³/ч)</th>
+                    </tr>
+                </thead>
+                <tbody id="balance-table-body">
+                    <!-- Заполняется через renderBalanceTable() -->
+                </tbody>
+            </table>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button class="btn" style="margin: 0; width: auto; background: var(--success);" onclick="calcBalance()">РАССЧИТАТЬ БАЛАНС</button>
+        </div>
+
+        <div id="balance-results" style="display: none; margin-top: 25px;">
+            <div class="results-dashboard" id="balance-dashboard"></div>
+        </div>
+    </div>
+</div>
