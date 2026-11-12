@@ -1,0 +1,85 @@
+<div class="tab-content active" id="tab-vent">
+    <div class="section-title" style="margin-top:15px;">Параметры помещения</div>
+    <div class="form-grid">
+        <div class="form-group"><label>Длина (м)</label><input type="number" step="0.1" id="v_length" class="sync-length" value="6"></div>
+        <div class="form-group"><label>Ширина (м)</label><input type="number" step="0.1" id="v_width" class="sync-width" value="4"></div>
+        <div class="form-group"><label>Высота (м)</label><input type="number" step="0.1" id="v_height" class="sync-height" value="3"></div>
+        <div class="form-group">
+            <label>Город</label>
+            <select id="v_city" class="sync-city"></select>
+        </div>
+        <div class="form-group">
+            <label>t снаружи (°C)</label>
+            <input type="number" id="v_t_out" readonly value="-32">
+            <input type="hidden" id="v_gsop">
+        </div>
+    </div>
+
+    <div class="section-title">Источники загрязнения (СП 60.13330)</div>
+    <div class="form-grid">
+        <div class="form-group"><label>Людей (чел)</label><input type="number" id="v_people" value="10"></div>
+        <div class="form-group"><label>Теплоизбытки (кВт)</label><input type="number" step="0.1" id="v_heat" value="0.5"></div>
+        <div class="form-group"><label>Влаговыделения (г/ч)</label><input type="number" step="10" id="v_moisture" value="1500"></div>
+        <div class="form-group"><label>Вредные в-ва (г/ч)</label><input type="number" step="0.1" id="v_hazard" value="2.5"></div>
+        <div class="form-group"><label>ПДК (мг/м³)</label><input type="number" step="0.1" id="v_mpc" value="20"></div>
+
+        <div class="form-group">
+            <label>Тип помещения</label>
+            <select id="v_room_type" onchange="applyNormTemperature('v')">
+                <option value="living">Жилая комната</option>
+                <option value="office" selected>Офис / Административное</option>
+                <option value="kitchen">Кухня</option>
+                <option value="bathroom">Ванная / Санузел</option>
+                <option value="industrial_light">Производство (легкий труд)</option>
+                <option value="industrial_heavy">Производство (тяжелый труд)</option>
+            </select>
+        </div>
+        <div class="form-group checkbox" style="margin-top: 0;">
+            <input type="checkbox" id="v_is_corner" onchange="applyNormTemperature('v')">
+            <label style="margin: 0; text-transform: none; color: #1e293b; font-weight: 600;">Угловое помещение (+2°C)</label>
+        </div>
+        <div class="form-group">
+            <label>t внутри (°C)</label>
+            <input type="number" step="0.1" id="v_t_in" value="22">
+        </div>
+
+        <div class="form-group"><label>Форма воздуховода</label><select id="v_duct_shape"><option value="round">Круглая</option><option value="rect">Прямоугольная</option></select></div>
+        <div class="form-group">
+            <label>Материал воздуховода</label>
+            <select id="v_duct_material">
+                <option value="steel_galv">Сталь оцинкованная</option>
+                <option value="steel_black">Сталь черная</option>
+                <option value="plastic">Пластик (винил)</option>
+                <option value="aluminum_flex">Гибкий алюминий</option>
+                <option value="concrete">Бетон</option>
+                <option value="brick">Кирпич</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="section-title">Участки воздуховода</div>
+    <div id="vent-sections-container">
+    </div>
+    <button class="btn" style="background: #e2e8f0; color: #1e293b; margin-bottom: 20px;" onclick="addVentSection()">+ Добавить участок</button>
+
+    <div class="section-title">Рекуперация и Акустика</div>
+    <div class="form-grid">
+        <div class="form-group"><label>КПД рекуператора (%)</label><input type="number" step="1" id="v_recup_eff" value="65"></div>
+        <div class="form-group"><label>Тариф (руб/кВт*ч)</label><input type="number" step="0.01" id="v_tariff" value="5.50"></div>
+        <div class="form-group"><label>Длит. сезона (дней)</label><input type="number" id="v_season_days" value="210"></div>
+        <div class="form-group"><label>Расстояние до решетки (м)</label><input type="number" step="0.1" id="v_distance" value="2.0"></div>
+    </div>
+    <button class="btn" onclick="calcVent()">РАССЧИТАТЬ ВЕНТИЛЯЦИЮ</button>
+
+    <div id="vent-results" style="display: none; margin-top: 25px;">
+        <div class="results-dashboard" id="v-dashboard"></div>
+        <details class="calc-details"><summary>🔍 Показать методику расчёта</summary><div id="v-methodology"></div></details>
+        <details class="report-box"><summary>📄 Показать текстовый отчёт</summary><pre id="v-report"></pre></details>
+        <div class="export-buttons">
+            <button class="btn-export btn-excel" onclick="downloadFile('vent', 'excel')">📥 Скачать Excel</button>
+            <button class="btn-export btn-pdf" onclick="downloadFile('vent', 'pdf')">📄 Скачать PDF</button>
+        </div>
+        <div class="section-title" style="margin-top: 25px;">Каталог оборудования</div>
+        <div id="v-catalog"></div>
+    </div>
+</div>

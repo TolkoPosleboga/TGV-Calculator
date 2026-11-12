@@ -1,0 +1,20 @@
+<div id="home-view" class="view active">
+    <header>
+        <h1>Инженерный калькулятор</h1>
+        <p>Проектирование систем ОВ, Газоснабжения и Вентиляции</p>
+    </header>
+    <div class="home-cards">
+        <div class="home-card" onclick="switchView('express')">
+            <div class="home-card-icon">⚡</div>
+            <h2>Экспресс-расчет</h2>
+            <p>Быстрый подбор оборудования для одной комнаты или объекта. Вентиляция, отопление и газоснабжение с полной методикой расчета.</p>
+            <button class="btn-home">Перейти к расчету</button>
+        </div>
+        <div class="home-card" onclick="switchView('bim')">
+            <div class="home-card-icon">🏢</div>
+            <h2>BIM-Проектирование</h2>
+            <p>Загрузка 3D-модели здания (IFC). Автоматический анализ помещений, расчет всех комнат сразу и формирование сводной сметы.</p>
+            <button class="btn-home" style="background: #8b5cf6;">Загрузить модель</button>
+        </div>
+    </div>
+</div>

@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List
 from core import vent_math
+import traceback
 
 router = APIRouter(prefix="/api/ventilation", tags=["Вентиляция"])
 
@@ -33,7 +34,7 @@ class VentRequest(BaseModel):
     electricity_tariff: float
     season_days: int
     sections: List[DuctSection]
-    distance_m: float # НОВОЕ ПОЛЕ
+    distance_m: float
 
 @router.post("/calculate")
 def calculate_ventilation(data: VentRequest):
@@ -57,22 +58,27 @@ def calculate_ventilation(data: VentRequest):
             days=data.season_days
         )
 
-        solutions = vent_math.find_solutions(air["L_max_m3h"], pressure["total_loss_pa"], equipment["heater_power_kw"])
+        solutions_data = vent_math.find_solutions(air["L_max_m3h"], pressure["total_loss_pa"], equipment["heater_power_kw"])
 
-        # Акустический расчет (берем шум самого дешевого вентилятора или установки)
-        best_fan = next((s for s in solutions if s.category in ['fan', 'unit']), None)
-        fan_noise = best_fan.noise_db if best_fan else 65 # Заглушка, если не нашли
+        best_fan = next((s for s in solutions_data["solutions"] if s.category in ['fan', 'unit']), None)
+        fan_noise = best_fan.noise_db if best_fan else 65
 
         acoustics = vent_math.calculate_acoustics(fan_noise, sections_dict, data.distance_m, data.room_type)
 
-        report = vent_math.generate_vent_report(air, duct, pressure, equipment, recup)
+        report = vent_math.generate_vent_report(air, duct, pressure, equipment, recup, solutions_data)
 
         return {
-            "air_exchange": air, "duct": duct, "pressure_loss": pressure,
-            "equipment": equipment, "recuperation": recup,
-            "solutions": [s.model_dump() for s in solutions],
-            "acoustics": acoustics, # ДОБАВИЛИ В ОТВЕТ
+            "air_exchange": air,
+            "duct": duct,
+            "pressure_loss": pressure,
+            "equipment": equipment,
+            "recuperation": recup,
+            "solutions": [s.model_dump() for s in solutions_data["solutions"]],
+            "requires_professional": solutions_data["requires_professional"],
+            "missing": solutions_data["missing"],
+            "acoustics": acoustics,
             "report": report
         }
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

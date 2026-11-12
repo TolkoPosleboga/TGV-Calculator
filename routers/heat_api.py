@@ -61,10 +61,10 @@ def calculate_heating(data: HeatRequest):
                 t_supply=data.t_supply, t_return=data.t_return
             )
 
-        solutions = heat_math.find_heat_equipment(res["boiler_power_kw"], corr["power_factor"])
+        solutions_data = heat_math.find_heat_equipment(res["boiler_power_kw"], corr["power_factor"])
 
         report = heat_math.generate_heat_report(
-            "Город", res, hydr, data.wall_mat, data.insul_mat, data.window_type
+            "Город", res, hydr, data.wall_mat, data.insul_mat, data.window_type, solutions_data
         )
 
         return {
@@ -72,7 +72,9 @@ def calculate_heating(data: HeatRequest):
             "radiator_correction": corr,
             "hydraulics": hydr,
             "underfloor_results": uf,
-            "solutions": [s.model_dump() for s in solutions],
+            "solutions": [s.model_dump() for s in solutions_data["solutions"]],
+            "requires_professional": solutions_data["requires_professional"],
+            "missing": solutions_data["missing"],
             "report": report
         }
     except Exception as e:

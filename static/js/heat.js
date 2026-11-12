@@ -50,7 +50,6 @@ async function calcHeat() {
             ${ufHtml}
         `;
 
-        // --- РАСШИРЕННАЯ МЕТОДИКА ОТОПЛЕНИЯ ---
         let hydrMethodology = `
             <div class="formula-block" style="background: #fdf4ff; border-left-color: #d946ef;">
                 <b>10. Гидравлика системы отопления:</b><br>
@@ -140,6 +139,28 @@ function renderHeatCatalog() {
     const catalog = document.getElementById('h-catalog');
     const sortEl = document.getElementById('h_sort');
     const sortType = sortEl ? sortEl.value : 'price_asc';
+
+    catalog.innerHTML = '';
+
+    if (currentHeatData.requires_professional) {
+        let missingHtml = currentHeatData.missing.map(m => {
+            if (m.category === "Котёл") return `• Котёл (Требуется: ${m.power} кВт)`;
+            if (m.category === "Радиатор") return `• Радиатор (${m.power_factor})`;
+            if (m.category === "Насос") return `• Насос (${m.power_factor})`;
+            return `• ${m.category}`;
+        }).join('<br>');
+
+        catalog.innerHTML += `
+            <div class="prof-warning">
+                <h3>⚠️ Требуется профессиональный подбор</h3>
+                <p>В нашем каталоге не нашлось готового оборудования для заданных параметров. Обратитесь к проектировщику или напрямую к производителю (например, Buderus, De Dietrich) для индивидуального заказа.</p>
+                <div class="prof-missing-list">
+                    <b>Недостающие позиции:</b><br>${missingHtml}
+                </div>
+            </div>
+        `;
+    }
+
     let items = [...currentHeatData.solutions];
     if (sortType === 'price_asc') items.sort((a, b) => a.price_rub - b.price_rub);
     else if (sortType === 'price_desc') items.sort((a, b) => b.price_rub - a.price_rub);
@@ -148,19 +169,32 @@ function renderHeatCatalog() {
     const grouped = { boiler: [], radiator: [], pump: [] };
     items.forEach(s => { if (grouped[s.category]) grouped[s.category].push(s); });
     const names = { boiler: "Газовые котлы", radiator: "Радиаторы отопления", pump: "Циркуляционные насосы" };
-    catalog.innerHTML = '';
-    if (!grouped['boiler'] && !grouped['radiator'] && !grouped['pump']) catalog.innerHTML += `<div class="warn-box">⚠️ Оборудование для заданных параметров не найдено в каталоге.</div>`;
 
     ['boiler', 'radiator', 'pump'].forEach(cat => {
         if (!grouped[cat] || grouped[cat].length === 0) return;
         const minPrice = Math.min(...grouped[cat].map(i => i.price_rub));
         catalog.innerHTML += `<div class="category-header"><h3>${names[cat]}</h3></div><div class="solutions-grid" id="grid-heat-${cat}"></div>`;
         const grid = document.getElementById(`grid-heat-${cat}`);
+
         grouped[cat].forEach(s => {
             const isBest = s.price_rub === minPrice;
+            const isIndustrial = s.segment === 'industrial';
+            const industrialBadge = isIndustrial ? `<div class="industrial-badge">Промышленный</div>` : '';
+
             let specText = s.category === 'pump' ? `Расход: до 3.5 м³/ч` : `Мощность: ${s.power_kw} кВт`;
             if (s.category === 'radiator') specText = `Мощность: ${s.power_kw} кВт (паспорт) / ${(s.power_kw * currentHeatData.radiator_correction.power_factor).toFixed(1)} кВт (реал)`;
-            grid.innerHTML += `<div class="sol-card ${isBest ? 'best-choice' : ''}">${isBest ? '<div class="best-badge">Выгодный выбор</div>' : ''}<div class="sol-title">${s.model}</div><div class="sol-brand">${s.brand} | ${s.type}</div><div class="sol-specs"><span class="sol-spec">${specText}</span></div><div class="sol-price">${s.price_rub.toLocaleString('ru-RU')} ₽</div><a href="${s.url}" target="_blank" class="sol-link">Найти на сайте</a></div>`;
+
+            grid.innerHTML += `
+                <div class="sol-card ${isBest ? 'best-choice' : ''}">
+                    ${isBest ? '<div class="best-badge">Выгодный выбор</div>' : ''}
+                    ${industrialBadge}
+                    <div class="sol-title">${s.model}</div>
+                    <div class="sol-brand">${s.brand} | ${s.type}</div>
+                    <div class="sol-specs"><span class="sol-spec">${specText}</span></div>
+                    <div class="sol-price">${s.price_rub.toLocaleString('ru-RU')} ₽</div>
+                    <a href="${s.url}" target="_blank" class="sol-link">Найти на сайте</a>
+                </div>
+            `;
         });
     });
 }

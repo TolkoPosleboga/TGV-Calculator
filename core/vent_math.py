@@ -11,14 +11,13 @@ AIR_DENSITY = 1.2
 AIR_KINEMATIC_VISCOSITY = 1.5e-5
 T_ASSIMILATION = 5.0
 
-# Справочник абсолютной шероховатости материалов воздуховодов (в мм)
 DUCT_MATERIALS_ROUGHNESS = {
-    "steel_galv": 0.1,  # Сталь оцинкованная (гладкая)
-    "steel_black": 0.15,  # Сталь черная (обычная)
-    "plastic": 0.005,  # Пластик (очень гладкий)
-    "aluminum_flex": 0.5,  # Гибкий алюминиевый воздуховод
-    "concrete": 1.5,  # Бетон (шероховатый)
-    "brick": 3.0  # Кирпич (очень шероховатый)
+    "steel_galv": 0.1,
+    "steel_black": 0.15,
+    "plastic": 0.005,
+    "aluminum_flex": 0.5,
+    "concrete": 1.5,
+    "brick": 3.0
 }
 
 
@@ -79,7 +78,6 @@ def calculate_pressure_loss(L: float, duct: Dict, sections: List[Dict], duct_mat
     d_eq = duct["equivalent_diameter_m"]
     Re = v * d_eq / AIR_KINEMATIC_VISCOSITY
 
-    # Берем шероховатость выбранного материала (в метрах), по умолчанию сталь 0.1 мм
     roughness_mm = DUCT_MATERIALS_ROUGHNESS.get(duct_material, 0.1)
     roughness_m = roughness_mm / 1000.0
 
@@ -141,24 +139,60 @@ def calculate_recuperation(L: float, t_inside: float, t_outside: float, efficien
     energy_saved_kwh = q_saved_kw * hours
     money_saved = energy_saved_kwh * electricity_tariff
     frost_warning = "При температуре ниже -15°C роторный/пластинчатый рекуператор может обмерзать. Требуется байпас или предварительный подогрев." if (
-                t_outside < -15 and efficiency_pct > 60) else ""
+            t_outside < -15 and efficiency_pct > 60) else ""
     return {"q_saved_kw": round(q_saved_kw, 2), "energy_saved_kwh": round(energy_saved_kwh, 0),
             "money_saved_rub": round(money_saved, 0), "frost_warning": frost_warning}
 
 
-def find_solutions(L: float, P: float, Q: float) -> List[Any]:
+def find_solutions(L: float, P: float, Q: float) -> Dict[str, Any]:
     from catalogs.catalog_vent import EQUIPMENT_CATALOG
     L_req = L * 1.05
-    matched = []
+
+    by_cat = {}
     for item in EQUIPMENT_CATALOG:
-        if item.max_flow < L_req: continue
-        if item.category == "unit" and item.max_pressure < P: continue
-        if item.category == "heater" and item.heater_power < Q: continue
-        matched.append(item)
-    return matched
+        if item.category not in by_cat:
+            by_cat[item.category] = {"basic": [], "industrial": []}
+        if item.max_flow >= L_req:
+            if item.category in ["fan", "unit"] and item.max_pressure < P:
+                continue
+            if item.category == "heater" and item.heater_power < Q:
+                continue
+            by_cat[item.category][item.segment].append(item)
+
+    matched = []
+    missing = []
+
+    if by_cat.get("fan", {}).get("basic") or by_cat.get("unit", {}).get("basic"):
+        matched.extend(by_cat.get("fan", {}).get("basic", []))
+        matched.extend(by_cat.get("unit", {}).get("basic", []))
+    elif by_cat.get("fan", {}).get("industrial") or by_cat.get("unit", {}).get("industrial"):
+        matched.extend(by_cat.get("fan", {}).get("industrial", []))
+        matched.extend(by_cat.get("unit", {}).get("industrial", []))
+    else:
+        missing.append({"category": "Вентилятор/Установка", "flow": round(L_req, 1), "pressure": round(P, 1)})
+
+    if by_cat.get("heater", {}).get("basic"):
+        matched.extend(by_cat.get("heater", {}).get("basic", []))
+    elif by_cat.get("heater", {}).get("industrial"):
+        matched.extend(by_cat.get("heater", {}).get("industrial", []))
+    elif Q > 0:
+        missing.append({"category": "Калорифер", "power": round(Q, 1)})
+
+    for cat in ["duct", "filter", "recuperator"]:
+        if by_cat.get(cat, {}).get("basic"):
+            matched.extend(by_cat.get(cat, {}).get("basic", []))
+        elif by_cat.get(cat, {}).get("industrial"):
+            matched.extend(by_cat.get(cat, {}).get("industrial", []))
+
+    return {
+        "solutions": matched,
+        "requires_professional": len(missing) > 0,
+        "missing": missing
+    }
 
 
-def generate_vent_report(air: Dict, duct: Dict, pressure: Dict, equipment: Dict, recup: Dict = None) -> str:
+def generate_vent_report(air: Dict, duct: Dict, pressure: Dict, equipment: Dict, recup: Dict = None,
+                         solutions_data: Dict = None) -> str:
     duct_str = f"{duct.get('diameter_mm', '')} мм" if duct[
                                                           'shape'] == 'round' else f"{duct['width_mm']}×{duct['height_mm']} мм"
     lines = [
@@ -174,27 +208,24 @@ def generate_vent_report(air: Dict, duct: Dict, pressure: Dict, equipment: Dict,
         lines.extend(["", "-" * 40, "РЕКУПЕРАЦИЯ ТЕПЛА", "-" * 40, f"Экономия мощности: {recup['q_saved_kw']} кВт",
                       f"Экономия энергии за сезон: {recup['energy_saved_kwh']} кВт*ч",
                       f"Экономия денег за сезон: {recup['money_saved_rub']} руб."])
+
+    if solutions_data and solutions_data.get("requires_professional"):
+        lines.extend(["", "-" * 40, "ВНИМАНИЕ: ТРЕБУЕТСЯ ПРОФЕССИОНАЛЬНЫЙ ПОДБОР", "-" * 40])
+        for m in solutions_data["missing"]:
+            if m["category"] == "Вентилятор/Установка":
+                lines.append(f"Нет подходящего вентилятора/установки (Требуется: {m['flow']} м³/ч, {m['pressure']} Па)")
+            elif m["category"] == "Калорифер":
+                lines.append(f"Нет подходящего калорифера (Требуется: {m['power']} кВт)")
+
     lines.append("=" * 60)
     return "\n".join(lines)
 
 
-# ... (предыдущий код vent_math.py)
-
 def calculate_acoustics(fan_noise_db: int, sections: List[Dict], distance_m: float, room_type: str) -> Dict[str, Any]:
-    """
-    Упрощенный акустический расчет по СП 51.13330.2011.
-    Считает уровень звукового давления в расчетной точке (на расстоянии distance_m от решетки).
-    """
-    # 1. Допустимый уровень шума по СП 51 (дБА)
-    # Офис/кабинет - 40 дБА, Производство - 80 дБА (упрощенно)
     allowed_noise = 40 if room_type == "office" else 80
-
-    # 2. Затухание в воздуховодах (упрощенно)
     total_length = sum(sec.get("length", 0.0) for sec in sections)
-    # Затухание прямых участков (в среднем 0.1 дБ/м для металла)
     attenuation_duct = total_length * 0.1
 
-    # Затухание на отводах (в среднем 3 дБ на отвод)
     total_bends = 0
     for sec in sections:
         for res in sec.get("resistances", []):
@@ -202,18 +233,11 @@ def calculate_acoustics(fan_noise_db: int, sections: List[Dict], distance_m: flo
                 total_bends += res.get("qty", 1)
     attenuation_bends = total_bends * 3.0
 
-    # Затухание на конце (решетка + сферическое излучение)
-    # 10 * log10(4 * pi * r^2) - 11 (упрощенно для полусферы)
-    import math
     spatial_attenuation = 20 * math.log10(distance_m) + 8 if distance_m > 0 else 0
-
-    # Затухание на решетке (в среднем 5 дБ)
     attenuation_grille = 5.0
 
-    # 3. Итоговый уровень шума
     final_noise = fan_noise_db - attenuation_duct - attenuation_bends - attenuation_grille - spatial_attenuation
 
-    # 4. Проверка
     is_compliant = final_noise <= allowed_noise
     required_silencer = 0
 

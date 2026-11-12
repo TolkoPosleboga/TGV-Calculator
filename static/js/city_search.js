@@ -2,7 +2,7 @@ let citiesData = [];
 
 async function loadCities() {
     try {
-        const resp = await fetch('/static/cities_climate.json');
+        const resp = await fetch('/static/data/cities_climate.json');
         citiesData = await resp.json();
 
         populateSelect('v_city');
@@ -21,7 +21,6 @@ async function loadCities() {
                 const el = document.getElementById(id);
                 if (el) {
                     el.value = saved[id];
-                    // Принудительно вызываем обновление температуры и ГСОП
                     const changeEvent = new Event('change');
                     el.dispatchEvent(changeEvent);
                 }

@@ -1,0 +1,40 @@
+<div id="express-view" class="view">
+    <div class="view-header">
+        <button class="btn-back" onclick="switchView('home')">← На главную</button>
+        <h2>⚡ Экспресс-расчет</h2>
+    </div>
+
+    <div id="active-project-bar" style="display: none; background: #ecfdf5; border: 1px solid #10b981; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <div>
+            <strong style="color: #059669;">Активный проект:</strong> <span id="active-project-name"></span>
+        </div>
+        <button onclick="clearActiveProject()" style="background: none; border: none; color: #dc2626; cursor: pointer; font-weight: bold;">✖ Отменить выбор</button>
+    </div>
+
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <label class="switch-label">
+                <input type="checkbox" id="syncToggle" checked>
+                <span class="slider"></span>
+                Синхронизировать данные
+            </label>
+        </div>
+        <div class="toolbar-right">
+            <button onclick="fillRandomExample()" class="btn-toolbar btn-example">🎲 Пример</button>
+            <button onclick="shareLink()" class="btn-toolbar btn-share">🔗 Поделиться</button>
+            <button onclick="clearAll()" class="btn-toolbar btn-clear">🗑️ Сбросить</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('vent')" id="btn-vent">Вентиляция</button>
+            <button class="tab-btn" onclick="switchTab('heat')" id="btn-heat">Отопление</button>
+            <button class="tab-btn" onclick="switchTab('gas')" id="btn-gas">Газоснабжение</button>
+        </div>
+
+        {% include 'partials/tabs/vent.html' %}
+        {% include 'partials/tabs/heat.html' %}
+        {% include 'partials/tabs/gas.html' %}
+    </div>
+</div>

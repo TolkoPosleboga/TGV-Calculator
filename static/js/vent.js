@@ -177,10 +177,12 @@ async function calcVent() {
 
     try {
         const resp = await fetch('/api/ventilation/calculate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-        if (!resp.ok) throw new Error('Ошибка сервера');
+        if (!resp.ok) {
+            const errData = await resp.json();
+            throw new Error(errData.detail || 'Ошибка сервера');
+        }
         const r = await resp.json(); lastResp.vent = r;
 
-        let dt_heat = r.air_exchange.delta_t_heat || 5.0;
         let recupHtml = '';
         if (r.recuperation && r.recuperation.q_saved_kw > 0) {
             recupHtml = `<div class="result-box" style="background: #f0fdf4; border-color: #22c55e;"><h4 style="color: #166534;">Экономия на отоплении</h4><div class="value" style="color: #166534;">${r.recuperation.money_saved_rub.toLocaleString('ru-RU')} <span class="unit">руб/сезон</span></div></div>`;
@@ -192,7 +194,6 @@ async function calcVent() {
             const bgColor = ac.is_compliant ? '#f0fdf4' : '#fef2f2';
             const borderColor = ac.is_compliant ? '#22c55e' : '#ef4444';
             const icon = ac.is_compliant ? '✅' : '⚠️';
-
             const totalAttenuation = (ac.attenuation_duct + ac.attenuation_bends + ac.spatial_attenuation + 5).toFixed(1);
 
             acousticsHtml = `
@@ -209,7 +210,6 @@ async function calcVent() {
             `;
         }
 
-        // --- НОВАЯ ТАБЛИЦА ВОЗДУХООБМЕНА ---
         const isPeople = r.air_exchange.decisive_factor === 'По людям';
         const isRate = r.air_exchange.decisive_factor === 'По кратности';
         const isHeat = r.air_exchange.decisive_factor === 'По теплоизбыткам';
@@ -323,22 +323,62 @@ async function calcVent() {
         `;
 
         document.getElementById('v-report').textContent = r.report;
-        const cat = document.getElementById('v-catalog'); cat.innerHTML = '';
-        const grouped = {}; r.solutions.forEach(s => { if(!grouped[s.category]) grouped[s.category]=[]; grouped[s.category].push(s); });
-        const names = { unit: "Приточные установки", fan: "Вентиляторы", duct: "Воздуховоды", heater: "Калориферы", filter: "Фильтры", recuperator: "Рекуператоры" };
 
-        if (!grouped['unit'] && !grouped['fan']) cat.innerHTML += `<div class="warn-box">⚠️ В каталоге не найдено вентиляторов или установок с расходом более ${r.equipment.fan_flow_m3h} м³/ч.</div>`;
-        if (!grouped['heater'] && r.equipment.heater_power_kw > 0) cat.innerHTML += `<div class="warn-box">⚠️ В каталоге не найдено калориферов мощностью более ${r.equipment.heater_power_kw} кВт.</div>`;
+        const cat = document.getElementById('v-catalog');
+        cat.innerHTML = '';
 
-        ["unit", "fan", "duct", "heater", "filter", "recuperator"].forEach(c => {
+        if (r.requires_professional) {
+            let missingHtml = r.missing.map(m => {
+                if (m.category === "Вентилятор/Установка") return `• Вентилятор / Установка (Требуется: ${m.flow} м³/ч, ${m.pressure} Па)`;
+                if (m.category === "Калорифер") return `• Калорифер (Требуется: ${m.power} кВт)`;
+                return `• ${m.category}`;
+            }).join('<br>');
+
+            cat.innerHTML += `
+                <div class="prof-warning">
+                    <h3>⚠️ Требуется профессиональный подбор</h3>
+                    <p>В нашем каталоге не нашлось готового оборудования для заданных параметров. Обратитесь к проектировщику или напрямую к производителю (например, ВЕЗА, Systemair) для индивидуального заказа.</p>
+                    <div class="prof-missing-list">
+                        <b>Недостающие позиции:</b><br>${missingHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        const grouped = {};
+        r.solutions.forEach(s => {
+            if(!grouped[s.category]) grouped[s.category]=[];
+            grouped[s.category].push(s);
+        });
+
+        const names = { unit: "Приточные установки", fan: "Вентиляторы", duct: "Воздуховоды", heater: "Калориферы", filter: "Фильтры", recuperator: "Рекуператоры", silencer: "Шумоглушители", valve: "Клапаны", cyclone: "Циклоны" };
+
+        ["unit", "fan", "duct", "heater", "filter", "recuperator", "silencer", "valve", "cyclone"].forEach(c => {
             if (!grouped[c]) return;
             grouped[c].sort((a, b) => a.price_rub - b.price_rub);
             const min = grouped[c][0].price_rub;
-            cat.innerHTML += `<div class="category-header"><h3>${names[c]}</h3></div><div class="solutions-grid" id="grid-${c}"></div>`;
+            cat.innerHTML += `<div class="category-header"><h3>${names[c] || c}</h3></div><div class="solutions-grid" id="grid-${c}"></div>`;
             const grid = document.getElementById(`grid-${c}`);
+
             grouped[c].forEach(s => {
                 const best = s.price_rub === min;
-                grid.innerHTML += `<div class="sol-card ${best ? 'best-choice' : ''}">${best ? '<div class="best-badge">Выгодный выбор</div>' : ''}<div class="sol-title">${s.model}</div><div class="sol-brand">${s.brand}</div><div class="sol-specs">${s.category !== 'duct' ? `<span class="sol-spec">${s.max_flow.toLocaleString('ru-RU')} м³/ч</span>` : ''}${s.heater_power > 0 ? `<span class="sol-spec">${s.heater_power} кВт</span>` : ''}</div><div class="sol-price">${s.price_rub.toLocaleString('ru-RU')} ₽</div><a href="${s.url}" target="_blank" class="sol-link">Найти на сайте</a></div>`;
+                const isIndustrial = s.segment === 'industrial';
+                const industrialBadge = isIndustrial ? `<div class="industrial-badge">Промышленный</div>` : '';
+
+                grid.innerHTML += `
+                    <div class="sol-card ${best ? 'best-choice' : ''}">
+                        ${best ? '<div class="best-badge">Выгодный выбор</div>' : ''}
+                        ${industrialBadge}
+                        <div class="sol-title">${s.model}</div>
+                        <div class="sol-brand">${s.brand}</div>
+                        <div class="sol-specs">
+                            ${s.category !== 'duct' ? `<span class="sol-spec">${s.max_flow.toLocaleString('ru-RU')} м³/ч</span>` : ''}
+                            ${s.heater_power > 0 ? `<span class="sol-spec">${s.heater_power} кВт</span>` : ''}
+                        </div>
+                        <div class="sol-price">${s.price_rub.toLocaleString('ru-RU')} ₽</div>
+                        <a href="${s.url}" target="_blank" class="sol-link">Найти на сайте</a>
+                    </div>
+                `;
             });
         });
     } catch (e) { alert(e.message); }

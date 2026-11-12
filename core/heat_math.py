@@ -103,7 +103,7 @@ def calculate_hydraulics(power_w: float, t_supply: float, t_return: float, veloc
     area_req_m2 = (flow_m3h / 3600.0) / velocity
     d_req_mm = math.sqrt(4 * area_req_m2 / math.pi) * 1000
 
-    std_diameters = [15, 20, 25, 32, 40, 50]
+    std_diameters = [15, 20, 25, 32, 40, 50, 65, 80, 100]
     selected_d = next((d for d in std_diameters if d >= d_req_mm), std_diameters[-1])
 
     system_volume_l = (power_w / 1000.0) * 15
@@ -146,19 +146,59 @@ def calculate_underfloor_heating(area_m2: float, spacing_mm: float, heat_loss_w:
     }
 
 
-def find_heat_equipment(power_kw: float, rad_factor: float) -> List[HeatingSolution]:
-    matched = []
+def find_heat_equipment(power_kw: float, rad_factor: float) -> Dict[str, Any]:
+    by_cat = {
+        "boiler": {"basic": [], "industrial": []},
+        "radiator": {"basic": [], "industrial": []},
+        "pump": {"basic": [], "industrial": []}
+    }
+
     for item in EQUIPMENT_CATALOG_HEAT:
         if item.category == "boiler" and item.power_kw >= power_kw * 0.95:
-            matched.append(item)
-        elif item.category == "radiator" and item.power_kw * rad_factor >= 1.0:
-            matched.append(item)
-        elif item.category == "pump":
-            matched.append(item)
-    return matched
+            by_cat["boiler"][item.segment].append(item)
+        elif item.category == "radiator" and item.power_kw * rad_factor >= 1.0 and power_kw < 500:
+            by_cat["radiator"][item.segment].append(item)
+        elif item.category == "pump" and power_kw < 500:
+            by_cat["pump"][item.segment].append(item)
+
+    matched = []
+    missing = []
+
+    # Котлы
+    if by_cat["boiler"]["basic"]:
+        matched.extend(by_cat["boiler"]["basic"])
+    elif by_cat["boiler"]["industrial"]:
+        matched.extend(by_cat["boiler"]["industrial"])
+    else:
+        missing.append({"category": "Котёл", "power": round(power_kw, 1)})
+
+    # Радиаторы
+    if by_cat["radiator"]["basic"]:
+        matched.extend(by_cat["radiator"]["basic"])
+    elif by_cat["radiator"]["industrial"]:
+        matched.extend(by_cat["radiator"]["industrial"])
+    elif power_kw >= 500:
+        missing.append({"category": "Радиатор", "power_factor": "Требуется расчет секций/панелей"})
+    else:
+        missing.append({"category": "Радиатор", "power_factor": round(rad_factor, 2)})
+
+    # Насосы
+    if by_cat["pump"]["basic"]:
+        matched.extend(by_cat["pump"]["basic"])
+    elif by_cat["pump"]["industrial"]:
+        matched.extend(by_cat["pump"]["industrial"])
+    elif power_kw >= 500:
+        missing.append({"category": "Насос", "power_factor": "Требуется промышленный насос"})
+
+    return {
+        "solutions": matched,
+        "requires_professional": len(missing) > 0,
+        "missing": missing
+    }
 
 
-def generate_heat_report(city_name: str, res: Dict, hydr: Dict, wall_mat: str, insul_mat: str, win_type: str) -> str:
+def generate_heat_report(city_name: str, res: Dict, hydr: Dict, wall_mat: str, insul_mat: str, win_type: str,
+                         solutions_data: Dict = None) -> str:
     flow = hydr.get("flow_m3h", 0)
     d_mm = hydr.get("selected_d_mm", 0)
     tank = hydr.get("tank_volume_l", 0)
@@ -183,6 +223,16 @@ def generate_heat_report(city_name: str, res: Dict, hydr: Dict, wall_mat: str, i
         f"Рекомендуемый диаметр труб (внутр.): Ду{d_mm} мм",
         f"Объем расширительного бака: {tank} литров", "",
         "-" * 40, "ПОДБОР ОБОРУДОВАНИЯ", "-" * 40,
-        f"Требуемая мощность котла (+15%): {res['boiler_power_kw']} кВт", "=" * 60,
+        f"Требуемая мощность котла (+15%): {res['boiler_power_kw']} кВт"
     ]
+
+    if solutions_data and solutions_data.get("requires_professional"):
+        lines.extend(["", "-" * 40, "ВНИМАНИЕ: ТРЕБУЕТСЯ ПРОФЕССИОНАЛЬНЫЙ ПОДБОР", "-" * 40])
+        for m in solutions_data["missing"]:
+            if m["category"] == "Котёл":
+                lines.append(f"Нет подходящего котла (Требуется: {m['power']} кВт)")
+            elif m["category"] == "Радиатор":
+                lines.append(f"Нет подходящего радиатора для заданных условий")
+
+    lines.append("=" * 60)
     return "\n".join(lines)
