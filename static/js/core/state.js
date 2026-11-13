@@ -83,6 +83,31 @@ function initRoomManager() {
     loadActiveRoomData();
 }
 
+function loadActiveRoomData() {
+    const room = appRooms.find(r => r.id === activeRoomId);
+    if (!room) return;
+
+    const localData = room.data || {};
+    const globalData = JSON.parse(localStorage.getItem('calc_global_climate') || '{}');
+
+    const combinedData = { ...localData, ...globalData };
+    localStorage.setItem('calc_saved_data', JSON.stringify(combinedData));
+
+    if (typeof applySavedDataToUI === 'function') {
+        applySavedDataToUI();
+    }
+
+    // Синхронизация дымоудаления при переключении комнаты
+    if (typeof syncSmokeData === 'function') {
+        syncSmokeData();
+    }
+
+    ['vent-results', 'heat-results', 'gas-results', 'ac-results'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+}
+
 function syncAppRooms() {
     const activeFloor = appFloors.find(f => parseInt(f.id) === parseInt(activeFloorId));
     if (activeFloor && activeFloor.rooms) {

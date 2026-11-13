@@ -57,7 +57,7 @@ function addVentSection(name = "", length = 10, shape = "round", material = "ste
     div.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <h4 style="margin: 0; color: #0f172a;">${secName}</h4>
-            <button class="btn" style="width: auto; padding: 5px 10px; background: #ef4444; margin: 0;" onclick="this.closest('.vent-section-box').remove(); saveVentSections();">Удалить участок</button>
+            <button class="btn" style="width: auto; padding: 5px 10px; background: #ef4444; margin: 0; font-size: 12px;" onclick="this.closest('.vent-section-box').remove(); saveVentSections(); if(typeof debouncedCalcVent === 'function') debouncedCalcVent();">Удалить участок</button>
         </div>
         <div class="form-grid" style="margin-bottom: 15px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
             <div class="form-group">
@@ -89,10 +89,10 @@ function addVentSection(name = "", length = 10, shape = "round", material = "ste
             </div>
         </div>
 
-        <div style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <div style="background: #f8fafc; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <span style="font-weight: 600; font-size: 13px; color: #475569;">Местные сопротивления (КМС)</span>
-                <button class="btn" style="width: auto; padding: 5px 10px; background: #3b82f6; margin: 0; font-size: 12px;" onclick="addResistanceRow('${div.id}'); saveVentSections();">+ Добавить элемент</button>
+                <span style="font-weight: 600; font-size: 12px; color: #475569; text-transform: uppercase;">Местные сопротивления (КМС)</span>
+                <button class="btn" style="width: auto; padding: 5px 10px; background: var(--primary); margin: 0; font-size: 12px;" onclick="addResistanceRow('${div.id}'); saveVentSections();">+ Добавить элемент</button>
             </div>
             <div class="resistances-container" id="res-container-${sectionCounter}"></div>
         </div>
@@ -130,7 +130,7 @@ function addResistanceRow(sectionId, type = "bend_90_round", qty = 1, zeta = nul
         </select>
         <input type="number" class="res-qty" value="${qty}" min="1" style="flex: 1; padding: 8px; font-size: 13px;" placeholder="Кол-во" oninput="saveVentSections()">
         <input type="number" step="0.01" class="res-zeta" value="${zetaVal}" style="flex: 1; padding: 8px; font-size: 13px;" placeholder="ζ" oninput="saveVentSections()">
-        <button class="btn" style="width: auto; padding: 8px 12px; background: #cbd5e1; color: #dc2626; margin: 0;" onclick="this.parentElement.remove(); saveVentSections();">✖</button>
+        <button class="btn" style="width: auto; padding: 8px 12px; background: #cbd5e1; color: #b91c1c; margin: 0;" onclick="this.parentElement.remove(); saveVentSections(); if(typeof debouncedCalcVent === 'function') debouncedCalcVent();">✖</button>
     `;
     container.appendChild(row);
 }
@@ -143,7 +143,9 @@ function updateZetaInput(selectElement) {
     }
 }
 
-async function calcVent() {
+async function calcVent(isAuto = false) {
+    isAutoCalc = isAuto;
+
     const length = getVal('v_length', 'Длина помещения (м)');
     const width = getVal('v_width', 'Ширина помещения (м)');
     const height = getVal('v_height', 'Высота помещения (м)');
@@ -160,7 +162,10 @@ async function calcVent() {
     const tariff = document.getElementById('v_tariff').value;
     const season = document.getElementById('v_season_days').value;
 
-    if (length === null || width === null || height === null || people === null || heat_gain === null || moisture === null || hazard === null || mpc === null || t_in === null || t_out === null) return;
+    if (length === null || width === null || height === null || people === null || heat_gain === null || moisture === null || hazard === null || mpc === null || t_in === null || t_out === null) {
+        isAutoCalc = false;
+        return;
+    }
 
     const sectionsData = collectSectionsData();
 
@@ -178,7 +183,16 @@ async function calcVent() {
         };
     });
 
-    if (sectionsForBackend.length === 0) { alert("Добавьте хотя бы один участок воздуховода!"); return; }
+    if (sectionsForBackend.length === 0) {
+        const warning = document.getElementById('vent-warning-no-sections');
+        if (warning) {
+            warning.style.display = 'block';
+            setTimeout(() => { warning.style.display = 'none'; }, 5000);
+        }
+        addVentSection("Магистраль (авто)", 10);
+        isAutoCalc = false;
+        return;
+    }
 
     document.getElementById('vent-results').style.display = 'block';
     document.getElementById('v-dashboard').innerHTML = '<p>Расчёт...</p>';
@@ -188,6 +202,7 @@ async function calcVent() {
         heat_gain_kw: heat_gain, moisture_gain_g_h: moisture, hazard_g_h: hazard, mpc_mg_m3: mpc,
         t_inside: t_in, t_outside: t_out,
         room_type: document.getElementById('v_room_type')?.value || 'office',
+        duct_material: document.getElementById('v_duct_material')?.value || 'steel_galv',
         recup_efficiency: parseFloat(recup_eff) || 0,
         electricity_tariff: parseFloat(tariff) || 5.5,
         season_days: parseInt(season) || 210,
@@ -211,7 +226,7 @@ async function calcVent() {
 
         let recupHtml = '';
         if (r.recuperation && r.recuperation.q_saved_kw > 0) {
-            recupHtml = `<div class="result-box" style="background: #f0fdf4; border-color: #22c55e;"><h4 style="color: #166534;">Экономия на отоплении</h4><div class="value" style="color: #166534;">${r.recuperation.money_saved_rub.toLocaleString('ru-RU')} <span class="unit">руб/сезон</span></div></div>`;
+            recupHtml = `<div class="result-box" style="background: #f0fdf4; border-color: #22c55e;"><h4 style="color: #047857;">Экономия на отоплении <span class="info-icon" data-tooltip="Q_экон = L × ρ × c × Δt_нар × КПД / 3600"></span></h4><div class="value" style="color: #047857;">${r.recuperation.money_saved_rub.toLocaleString('ru-RU')} <span class="unit">руб/сезон</span></div></div>`;
         }
 
         let acousticsHtml = '';
@@ -219,13 +234,13 @@ async function calcVent() {
             const ac = r.acoustics;
             const bgColor = ac.is_compliant ? '#f0fdf4' : '#fef2f2';
             const borderColor = ac.is_compliant ? '#22c55e' : '#ef4444';
-            const icon = ac.is_compliant ? '✅' : '⚠️';
+            const statusText = ac.is_compliant ? 'Соответствует' : 'Превышение';
             const totalAttenuation = (ac.attenuation_duct + ac.attenuation_bends + ac.spatial_attenuation + 5).toFixed(1);
 
             acousticsHtml = `
                 <div class="result-box" style="background: ${bgColor}; border-color: ${borderColor}; grid-column: span 2;">
-                    <h4>Акустика</h4>
-                    <div style="font-size: 14px; font-weight: 600; color: #1e293b; margin-top: 5px;">${icon} ${ac.message}</div>
+                    <h4>Акустика <span class="info-icon" data-tooltip="L_шум = Шум_вент - Затухание_в_канале - Затухание_на_отводах - Пространственное_затухание - Затухание_на_решетке"></span></h4>
+                    <div style="font-size: 14px; font-weight: 600; color: #1e293b; margin-top: 5px;">${statusText} ${ac.message}</div>
                     <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.2;">
                         Шум вент: ${ac.fan_noise} дБА | Затухание: -${totalAttenuation} дБА
                     </div>
@@ -273,10 +288,22 @@ async function calcVent() {
         else ductDisplay = `${duct.width_mm}×${duct.height_mm}`;
 
         document.getElementById('v-dashboard').innerHTML = `
-            <div class="result-box"><h4>Расход воздуха</h4><div class="value">${r.air_exchange.L_max_m3h} <span class="unit">м³/ч</span></div></div>
-            <div class="result-box"><h4>${ductTitle}</h4><div class="value">${ductDisplay} <span class="unit">мм</span></div></div>
-            <div class="result-box"><h4>Потери</h4><div class="value">${r.pressure_loss.total_loss_pa} <span class="unit">Па</span></div></div>
-            <div class="result-box"><h4>Нагрев</h4><div class="value">${r.equipment.heater_power_kw} <span class="unit">кВт</span></div></div>
+            <div class="result-box">
+                <h4>Расход воздуха <span class="info-icon" data-tooltip="L = max(L_люди, L_кратность, L_тепло, L_влага, L_ПДК)"></span></h4>
+                <div class="value">${r.air_exchange.L_max_m3h} <span class="unit">м³/ч</span></div>
+            </div>
+            <div class="result-box">
+                <h4>${ductTitle} <span class="info-icon" data-tooltip="F = L / (3600 × 5 м/с). Подбирается ближайший стандартный диаметр/сечение."></span></h4>
+                <div class="value">${ductDisplay} <span class="unit">мм</span></div>
+            </div>
+            <div class="result-box">
+                <h4>Потери <span class="info-icon" data-tooltip="ΔP_общ = (ΔP_трение + ΔP_местные + ΔP_оборуд) × 1.15"></span></h4>
+                <div class="value">${r.pressure_loss.total_loss_pa} <span class="unit">Па</span></div>
+            </div>
+            <div class="result-box">
+                <h4>Нагрев <span class="info-icon" data-tooltip="Q = L × ρ × c × (t_вн - t_нар) / 3600"></span></h4>
+                <div class="value">${r.equipment.heater_power_kw} <span class="unit">кВт</span></div>
+            </div>
             ${recupHtml}
             ${acousticsHtml}
             ${airExchangeTable}
@@ -284,7 +311,7 @@ async function calcVent() {
 
         let recupMethodology = '';
         if (r.recuperation && r.recuperation.q_saved_kw > 0) {
-            let frostWarn = r.recuperation.frost_warning ? `<div class="warn-box" style="margin-top:10px;">⚠️ ${r.recuperation.frost_warning}</div>` : '';
+            let frostWarn = r.recuperation.frost_warning ? `<div class="warn-box" style="margin-top:10px;">${r.recuperation.frost_warning}</div>` : '';
             recupMethodology = `
                 <div class="formula-block" style="background: #f0fdf4; border-left-color: #22c55e;">
                     <b>7. Рекуперация:</b><br>
@@ -325,7 +352,7 @@ async function calcVent() {
             });
 
             acousticsMethodology = `
-                <div class="formula-block" style="background: #fdf4ff; border-left-color: #d946ef;">
+                <div class="formula-block" style="background: #f8fafc; border-left-color: #64748b;">
                     <b>8. Акустический расчет (СП 51.13330.2011):</b><br>
                     1. Шум вентилятора: <b>${ac.fan_noise} дБА</b><br>
                     2. Затухание в прямых участках (L = ${totalLength.toFixed(1)} м): <b>${ac.attenuation_duct} дБА</b><br>
@@ -393,7 +420,7 @@ async function calcVent() {
 
             cat.innerHTML += `
                 <div class="prof-warning">
-                    <h3>⚠️ Требуется профессиональный подбор</h3>
+                    <h3>Требуется профессиональный подбор</h3>
                     <p>В нашем каталоге не нашлось готового оборудования для заданных параметров. Обратитесь к проектировщику или напрямую к производителю (например, ВЕЗА, Systemair) для индивидуального заказа.</p>
                     <div class="prof-missing-list">
                         <b>Недостающие позиции:</b><br>${missingHtml}
@@ -438,7 +465,12 @@ async function calcVent() {
                 `;
             });
         });
-    } catch (e) { alert(e.message); }
+    } catch (e) {
+        if (!isAutoCalc) alert(e.message);
+        else console.error(e.message);
+    } finally {
+        isAutoCalc = false;
+    }
 }
 
 window.addEventListener('DOMContentLoaded', () => {

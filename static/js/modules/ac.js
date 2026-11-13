@@ -15,25 +15,29 @@ function syncAcFromVent() {
         document.getElementById('ac_people').value = v_people;
     }
 
-    // В кондиционировании явное тепло считается от людей, окон и света,
-    // но если есть доп. техника, можно перекинуть разницу.
-    // Оставим пока просто площадь, высоту и людей (это самое главное).
-
-    // Триггерим сохранение
     ['ac_area', 'ac_height', 'ac_people'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
     alert("Данные о площади, высоте и людях перенесены из Вентиляции!");
+    if (typeof debouncedCalcAc === 'function') debouncedCalcAc();
 }
 
-async function calcAc() {
+async function calcAc(isAuto = false) {
+    isAutoCalc = isAuto;
+
     const getValLocal = (id, name) => {
         const el = document.getElementById(id);
-        if (!el || el.value.trim() === '') { alert(`Заполните поле: ${name}`); return null; }
+        if (!el || el.value.trim() === '') {
+            if (!isAutoCalc) alert(`Заполните поле: ${name}`);
+            return null;
+        }
         const val = parseFloat(el.value);
-        if (isNaN(val)) { alert(`Поле "${name}" должно быть числом.`); return null; }
+        if (isNaN(val)) {
+            if (!isAutoCalc) alert(`Поле "${name}" должно быть числом.`);
+            return null;
+        }
         return val;
     };
 
@@ -65,7 +69,10 @@ async function calcAc() {
     const I_exh_p = getValLocal('ac_I_exh_p', 'Энтальпия удал ППГ');
     const I_exh_t = getValLocal('ac_I_exh_t', 'Энтальпия удал ТПГ');
 
-    if ([area, height, people, window_area, lighting_lux, lighting_w_m2, t_in_base, t_out_x, t_out_p, t_out_t, I_out_x, I_out_p, I_out_t, t_sup_x, t_sup_p, t_sup_t, t_exh_x, t_exh_p, t_exh_t, I_exh_x, I_exh_p, I_exh_t].includes(null)) return;
+    if ([area, height, people, window_area, lighting_lux, lighting_w_m2, t_in_base, t_out_x, t_out_p, t_out_t, I_out_x, I_out_p, I_out_t, t_sup_x, t_sup_p, t_sup_t, t_exh_x, t_exh_p, t_exh_t, I_exh_x, I_exh_p, I_exh_t].includes(null)) {
+        isAutoCalc = false;
+        return;
+    }
 
     document.getElementById('ac-results').style.display = 'block';
     document.getElementById('ac-dashboard').innerHTML = '<p>Расчёт...</p>';
@@ -90,8 +97,14 @@ async function calcAc() {
         const res = r.results;
 
         document.getElementById('ac-dashboard').innerHTML = `
-            <div class="result-box" style="background: #eff6ff; border-color: #bfdbfe;"><h4>Расчетный воздухообмен</h4><div class="value">${res.max_air_exchange} <span class="unit">м³/ч</span></div></div>
-            <div class="result-box" style="background: var(--success-bg); border-color: var(--success-border);"><h4 style="color: var(--success);">Мощность на кондиционирование</h4><div class="value" style="color: var(--success);">${(res.max_q_cond / 1000).toFixed(2)} <span class="unit">кВт</span></div></div>
+            <div class="result-box" style="background: #eff6ff; border-color: #bfdbfe;">
+                <h4>Расчетный воздухообмен <span class="info-icon" data-tooltip="L = max(L_явн, L_полн, L_влага, L_CO2, L_норм)"></span></h4>
+                <div class="value">${res.max_air_exchange} <span class="unit">м³/ч</span></div>
+            </div>
+            <div class="result-box" style="background: var(--success-bg); border-color: var(--success-border);">
+                <h4 style="color: var(--success);">Мощность на кондиционирование <span class="info-icon" data-tooltip="Q_конд = Q_полн - Q_вент"></span></h4>
+                <div class="value" style="color: var(--success);">${(res.max_q_cond / 1000).toFixed(2)} <span class="unit">кВт</span></div>
+            </div>
         `;
 
         const tbody = document.getElementById('ac-table-body');
@@ -185,7 +198,7 @@ async function calcAc() {
             let missingHtml = r.missing.map(m => `• ${m.category} (Требуется: ${m.power} кВт)`).join('<br>');
             cat.innerHTML += `
                 <div class="prof-warning">
-                    <h3>⚠️ Требуется профессиональный подбор</h3>
+                    <h3>Требуется профессиональный подбор</h3>
                     <p>В нашем каталоге не нашлось готового оборудования для заданных параметров.</p>
                     <div class="prof-missing-list"><b>Недостающие позиции:</b><br>${missingHtml}</div>
                 </div>
@@ -216,5 +229,10 @@ async function calcAc() {
                 `;
             });
         });
-    } catch (e) { alert(e.message); }
+    } catch (e) {
+        if (!isAutoCalc) alert(e.message);
+        else console.error(e.message);
+    } finally {
+        isAutoCalc = false;
+    }
 }

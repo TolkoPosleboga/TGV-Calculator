@@ -1,0 +1,49 @@
+<div class="tab-content" id="tab-vent-ext">
+    <div class="section-title" style="margin-top:15px; display: flex; justify-content: space-between; align-items: center;">
+        <span>Проверка на конденсат (Точка росы)</span>
+        <button class="btn" style="width: auto; padding: 6px 12px; margin: 0; font-size: 12px; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;" onclick="syncCondensationData()">
+            Взять данные из помещения
+        </button>
+    </div>
+    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Проверка выпадения конденсата на внутренней поверхности воздуховода и подбор толщины теплоизоляции.</p>
+
+    <div class="form-grid">
+        <div class="form-group">
+            <label>t вытяжного воздуха (°C)</label>
+            <input type="number" step="0.1" id="ext_cond_t_air" value="25" readonly>
+        </div>
+        <div class="form-group">
+            <label>Влажность вытяжного (%)</label>
+            <input type="number" step="1" id="ext_cond_hum" value="60" readonly>
+        </div>
+        <div class="form-group">
+            <label>t наружного воздуха (°C)</label>
+            <input type="number" step="0.1" id="ext_cond_t_out" value="-20" readonly>
+        </div>
+        <div class="form-group">
+            <label>Текущая толщина утеплителя (мм)</label>
+            <input type="number" step="10" id="ext_cond_insul" value="20">
+        </div>
+    </div>
+
+    <div id="ext-cond-results" style="display: none; margin-top: 20px; margin-bottom: 40px;">
+        <div class="results-dashboard" id="ext-cond-dashboard"></div>
+    </div>
+
+    <div class="section-title" style="margin-top: 25px;">Расчёт влажности вытяжного воздуха (СП 60.13330.2020, Ж.4)</div>
+    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Расчёт влагосодержания и относительной влажности вытяжного воздуха по известным влаговыделениям и расходу воздуха.</p>
+    <div class="form-grid">
+        <div class="form-group"><label>Влаговыделения W (г/ч)</label><input type="number" step="10" id="hum_w" value="1500"></div>
+        <div class="form-group"><label>Расход воздуха L (м³/ч)</label><input type="number" step="10" id="hum_l" value="1000"></div>
+        <div class="form-group"><label>t вытяжного воздуха (°C)</label><input type="number" step="0.1" id="hum_t_exh" value="22"></div>
+    </div>
+    <div id="humidity-results" style="display: none; margin-top: 20px; margin-bottom: 40px;">
+        <div class="results-dashboard" id="humidity-dashboard"></div>
+    </div>
+
+    <div class="section-title">Подбор водяного калорифера (СП 60.13330)</div>
+    <p style="font-size: 13px; color: #64748b;">Расчет расхода воды и гидравлических потерь. (В разработке)</p>
+
+    <div class="section-title" style="margin-top: 25px;">Увязка сети и подбор диафрагм</div>
+    <p style="font-size: 13px; color: #64748b;">Балансировка ответвлений вентиляционной сети. (В разработке)</p>
+</div>

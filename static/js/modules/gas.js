@@ -1,10 +1,15 @@
-async function calcGas() {
+async function calcGas(isAuto = false) {
+    isAutoCalc = isAuto;
+
     const boiler_power = getVal('g_boiler_power', 'Мощность котла (кВт)');
     const g_length = getVal('g_length', 'Длина помещения (м)');
     const g_width = getVal('g_width', 'Ширина помещения (м)');
     const g_height = getVal('g_room_height', 'Высота потолков (м)');
 
-    if (boiler_power === null || g_length === null || g_width === null || g_height === null) return;
+    if (boiler_power === null || g_length === null || g_width === null || g_height === null) {
+        isAutoCalc = false;
+        return;
+    }
 
     const room_volume = g_length * g_width * g_height;
     document.getElementById('g_room_volume').value = room_volume.toFixed(1);
@@ -15,12 +20,29 @@ async function calcGas() {
     const window_area = getVal('g_window_area', 'Площадь окна (м²)');
     const t_out = getVal('g_t_out', 'Температура снаружи (°C)');
 
-    if (chimney_height === null || pipe_length === null || local_zeta === null || window_area === null || t_out === null) return;
+    if (chimney_height === null || pipe_length === null || local_zeta === null || window_area === null || t_out === null) {
+        isAutoCalc = false;
+        return;
+    }
 
     document.getElementById('gas-results').style.display = 'block';
     document.getElementById('g-dashboard').innerHTML = '<p>Расчёт...</p>';
 
-    const data = { city_id: document.getElementById('g_city')?.value || 'Москва', boiler_power_kw: boiler_power, has_stove: document.getElementById('g_has_stove')?.checked || false, has_water_heater: document.getElementById('g_has_heater')?.checked || false, room_volume, room_height: g_height, combustion_chamber: document.getElementById('g_chamber')?.value || 'closed', chimney_height, pipe_length, local_zeta, window_area };
+    const globalCity = document.getElementById('global_city')?.value || 'Москва';
+
+    const data = {
+        city_id: globalCity,
+        boiler_power_kw: boiler_power,
+        has_stove: document.getElementById('g_has_stove')?.checked || false,
+        has_water_heater: document.getElementById('g_has_heater')?.checked || false,
+        room_volume,
+        room_height: g_height,
+        combustion_chamber: document.getElementById('g_chamber')?.value || 'closed',
+        chimney_height,
+        pipe_length,
+        local_zeta,
+        window_area
+    };
     lastData.gas = data;
 
     try {
@@ -30,23 +52,37 @@ async function calcGas() {
 
         const res = r.results; const city = r.city_info;
         const alerts = document.getElementById('g-alerts'); alerts.innerHTML = '';
-        if (res.chimney_warning) alerts.innerHTML += `<div class="warn-box">⚠️ <b>Дымоход:</b> ${res.chimney_warning}</div>`;
-        if (res.velocity_warning) alerts.innerHTML += `<div class="warn-box">⚠️ <b>Гидравлика:</b> ${res.velocity_warning}</div>`;
-        if (res.boiler_room_warnings.length > 0) alerts.innerHTML += `<div class="warn-box">⚠️ <b>Котельная:</b><br>${res.boiler_room_warnings.join('<br>')}</div>`;
+        if (res.chimney_warning) alerts.innerHTML += `<div class="warn-box"><b>Дымоход:</b> ${res.chimney_warning}</div>`;
+        if (res.velocity_warning) alerts.innerHTML += `<div class="warn-box"><b>Гидравлика:</b> ${res.velocity_warning}</div>`;
+        if (res.boiler_room_warnings.length > 0) alerts.innerHTML += `<div class="warn-box"><b>Котельная:</b><br>${res.boiler_room_warnings.join('<br>')}</div>`;
 
         document.getElementById('g-city-info').innerHTML = `<p><b>Оператор:</b> ${city.gas_operator}</p><p><b>Телефон:</b> ${city.gas_phone} | <b>Email:</b> ${city.gas_email}</p><p><b>Сайт:</b> <a href="${city.gas_site}" target="_blank">${city.gas_site}</a></p><p><b>Стоимость подключения:</b> <span style="color:var(--success); font-weight:bold;">${city.connection_cost}</span></p><p style="font-size: 13px; color: var(--muted); margin-top: 10px;">${city.note}</p>`;
 
-        // Динамический размер шрифта для дымохода
         const chimneyFontSize = res.d_chimney_mm > 0 ? '22px' : '18px';
 
         document.getElementById('g-dashboard').innerHTML = `
-            <div class="result-box"><h4>Расход газа</h4><div class="value">${res.v_total} <span class="unit">м³/ч</span></div></div>
-            <div class="result-box best"><h4>Счётчик</h4><div class="value">${res.meter}</div></div>
-            <div class="result-box"><h4>Диаметр трубы</h4><div class="value">${res.pipe}</div></div>
-            <div class="result-box"><h4>Скорость газа</h4><div class="value">${res.velocity} <span class="unit">м/с</span></div></div>
-            <div class="result-box"><h4>Потери давления</h4><div class="value">${res.p_total} <span class="unit">Па</span></div></div>
             <div class="result-box">
-                <h4>Дымоход</h4>
+                <h4>Расход газа <span class="info-icon" data-tooltip="V = Q_котла / (Q_сгор × η) + V_плиты + V_колонки"></span></h4>
+                <div class="value">${res.v_total} <span class="unit">м³/ч</span></div>
+            </div>
+            <div class="result-box best">
+                <h4>Счётчик <span class="info-icon" data-tooltip="Подбирается по максимальному расходу газа"></span></h4>
+                <div class="value">${res.meter}</div>
+            </div>
+            <div class="result-box">
+                <h4>Диаметр трубы <span class="info-icon" data-tooltip="По допустимой скорости газа (2 м/с)"></span></h4>
+                <div class="value">${res.pipe}</div>
+            </div>
+            <div class="result-box">
+                <h4>Скорость газа <span class="info-icon" data-tooltip="v = V / (3600 × F)"></span></h4>
+                <div class="value">${res.velocity} <span class="unit">м/с</span></div>
+            </div>
+            <div class="result-box">
+                <h4>Потери давления <span class="info-icon" data-tooltip="ΔP = λ(L/d)(ρv²/2) + Σζ(ρv²/2)"></span></h4>
+                <div class="value">${res.p_total} <span class="unit">Па</span></div>
+            </div>
+            <div class="result-box">
+                <h4>Дымоход <span class="info-icon" data-tooltip="Проверка по СП 7.13130.2013"></span></h4>
                 <div class="value" style="font-size: ${chimneyFontSize}; line-height: 1.2;">
                     ${res.d_chimney_mm > 0 ? res.d_chimney_mm : 'Коаксиальный'}
                     <span class="unit">${res.d_chimney_mm > 0 ? 'мм' : ''}</span>
@@ -101,8 +137,8 @@ async function calcGas() {
             </div>
             <div class="formula-block" style="background: #fef2f2; border-left-color: #dc2626;">
                 <b>7. Проверка помещения котельной:</b><br>
-                Объем помещения: ${room_volume.toFixed(1)} м³ (норма > 15 м³) — ${room_volume > 15 ? '✅ Соответствует' : '❌ НЕ соответствует'}<br>
-                Остекление: 0.03 м² на 1 м³ объема = ${(room_volume * 0.03).toFixed(2)} м² (по факту ${data.window_area} м²) — ${data.window_area >= room_volume * 0.03 ? '✅ Соответствует' : '❌ НЕ соответствует'}<br>
+                Объем помещения: ${room_volume.toFixed(1)} м³ (норма > 15 м³) — ${room_volume > 15 ? 'Соответствует' : 'НЕ соответствует'}<br>
+                Остекление: 0.03 м² на 1 м³ объема = ${(room_volume * 0.03).toFixed(2)} м² (по факту ${data.window_area} м²) — ${data.window_area >= room_volume * 0.03 ? 'Соответствует' : 'НЕ соответствует'}<br>
                 <span class="norm-ref">СП 62.13330.2011, п. 6.1.18</span>
             </div>
         `;
@@ -125,5 +161,10 @@ async function calcGas() {
         if (resContainer) {
             resContainer.scrollIntoView({ behavior: 'smooth' });
         }
-    } catch (e) { alert(e.message); }
+    } catch (e) {
+        if (!isAutoCalc) alert(e.message);
+        else console.error(e.message);
+    } finally {
+        isAutoCalc = false;
+    }
 }

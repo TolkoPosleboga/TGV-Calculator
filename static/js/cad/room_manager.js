@@ -1,4 +1,5 @@
 function renderRoomSelector() {
+    // 1. Рендер комнат текущего этажа
     const select = document.getElementById('room-selector');
     if (select) {
         select.innerHTML = '';
@@ -15,6 +16,7 @@ function renderRoomSelector() {
         }
     }
 
+    // 2. Рендер этажей в калькуляторе
     const floorSelect = document.getElementById('express-floor-selector');
     if (floorSelect) {
         floorSelect.innerHTML = '';
@@ -45,7 +47,7 @@ function switchRoom(newId) {
     newId = parseInt(newId);
     if (newId === activeRoomId) return;
 
-    // ПРИНУДИТЕЛЬНОЕ СОХРАНЕНИЕ ДО ПЕРЕКЛЮЧЕНИЯ
+    // Принудительное сохранение перед переключением
     saveActiveRoomData();
 
     activeRoomId = newId;
@@ -63,7 +65,6 @@ function switchFloorFromExpress(newFloorId) {
     newFloorId = parseInt(newFloorId);
     if (newFloorId === activeFloorId) return;
 
-    // ПРИНУДИТЕЛЬНОЕ СОХРАНЕНИЕ ДО ПЕРЕКЛЮЧЕНИЯ
     saveActiveRoomData();
 
     activeFloorId = newFloorId;
@@ -88,11 +89,12 @@ function saveActiveRoomData() {
     const localData = {};
     const globalData = JSON.parse(localStorage.getItem('calc_global_climate') || '{}');
 
-    // 1. Собираем текстовые поля и селекты ПРЯМО ИЗ DOM
+    // Собираем текстовые поля и селекты ПРЯМО ИЗ DOM
     document.querySelectorAll('input:not([type="checkbox"]), select, textarea').forEach(el => {
         if (!el.id) return;
+
         // Пропускаем системные селекторы управления
-        if (el.id === 'room-selector' || el.id === 'plan-room-selector' || el.id === 'express-floor-selector') return;
+        if (el.id === 'room-selector' || el.id === 'plan-room-selector' || el.id === 'express-floor-selector' || el.id === 'global_city') return;
 
         let val = el.value;
         if (isGlobalField(el.id)) {
@@ -102,7 +104,7 @@ function saveActiveRoomData() {
         }
     });
 
-    // 2. Собираем чекбоксы
+    // Собираем чекбоксы
     document.querySelectorAll('input[type="checkbox"]').forEach(el => {
         if (!el.id) return;
         let val = el.checked;
@@ -115,11 +117,11 @@ function saveActiveRoomData() {
 
     currentRoom.data = localData;
 
-    // 3. Синхронизация габаритов Калькулятор -> CAD
-    if (localData.v_width) currentRoom.width = parseFloat(localData.v_width) || 4;
-    if (localData.v_length) currentRoom.length = parseFloat(localData.v_length) || 6;
+    // Синхронизация габаритов Калькулятор -> CAD
+    if (localData.v_width) currentRoom.width = parseFloat(localData.v_width.replace(',', '.')) || 4;
+    if (localData.v_length) currentRoom.length = parseFloat(localData.v_length.replace(',', '.')) || 6;
 
-    // 4. Обновляем общее хранилище
+    // Обновляем общее хранилище
     const combinedData = { ...localData, ...globalData };
     localStorage.setItem('calc_saved_data', JSON.stringify(combinedData));
     localStorage.setItem('calc_global_climate', JSON.stringify(globalData));
@@ -138,6 +140,11 @@ function loadActiveRoomData() {
 
     if (typeof applySavedDataToUI === 'function') {
         applySavedDataToUI();
+    }
+
+    // Синхронизация дымоудаления при переключении комнаты
+    if (typeof syncSmokeData === 'function') {
+        syncSmokeData();
     }
 
     // Скрываем старые результаты расчетов
@@ -166,6 +173,8 @@ function addNewRoom() {
     });
 
     const w = 4, l = 6, h = 3.0;
+
+    // Создаем новую комнату
     const newRoom = {
         id: Date.now() + Math.floor(Math.random() * 1000),
         name: name.trim(),
@@ -193,8 +202,11 @@ function addNewRoom() {
     appRooms.push(newRoom);
     activeRoomId = newRoom.id;
 
+    // Жесткая привязка к текущему этажу
     const activeFloor = appFloors.find(f => parseInt(f.id) === parseInt(activeFloorId));
-    if (activeFloor) activeFloor.rooms = appRooms;
+    if (activeFloor) {
+        activeFloor.rooms = appRooms;
+    }
 
     saveRoomsToStorage();
     renderRoomSelector();
@@ -214,6 +226,7 @@ function deleteCurrentRoom() {
     if (!confirm("Удалить текущее помещение?")) return;
 
     appRooms = appRooms.filter(r => r.id !== activeRoomId);
+
     const activeFloor = appFloors.find(f => parseInt(f.id) === parseInt(activeFloorId));
     if (activeFloor) activeFloor.rooms = appRooms;
 

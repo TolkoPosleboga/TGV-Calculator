@@ -1,4 +1,6 @@
-async function calcHeat() {
+async function calcHeat(isAuto = false) {
+    isAutoCalc = isAuto;
+
     const wall_area = getVal('h_wall_area', 'Площадь стен (м²)');
     const wall_thick = getVal('h_wall_thick', 'Толщина стен (м)');
     const insul_thick = document.getElementById('h_insul_thick').value;
@@ -14,12 +16,26 @@ async function calcHeat() {
     const uf_area = document.getElementById('h_uf_area').value;
     const gsop = parseFloat(document.getElementById('h_gsop')?.value) || 0;
 
-    if (wall_area === null || wall_thick === null || win_area === null || roof_area === null || roof_insul === null || floor_area === null || t_out === null || t_in === null || t_supply === null || t_return === null || velocity === null) return;
+    if (wall_area === null || wall_thick === null || win_area === null || roof_area === null || roof_insul === null || floor_area === null || t_out === null || t_in === null || t_supply === null || t_return === null || velocity === null) {
+        isAutoCalc = false;
+        return;
+    }
 
     document.getElementById('heat-results').style.display = 'block';
     document.getElementById('h-dashboard').innerHTML = '<p>Расчёт...</p>';
 
-    const data = { t_outside: t_out, t_inside: t_in, wall_area, wall_mat: document.getElementById('h_wall_mat')?.value || 'brick_hollow', wall_thick, insul_mat: document.getElementById('h_insul_mat')?.value || 'minwool', insul_thick: parseFloat(insul_thick) || 0, window_area: win_area, window_type: document.getElementById('h_win_type')?.value || 'double_chamber', roof_area, roof_insul, floor_area, t_supply, t_return, connection_type: document.getElementById('h_connection_type')?.value || 'side', uf_area: parseFloat(uf_area) || 0, uf_spacing: parseFloat(document.getElementById('h_uf_spacing')?.value) || 150, pipe_velocity: velocity, gsop: gsop };
+    const data = {
+        t_outside: t_out, t_inside: t_in, wall_area,
+        wall_mat: document.getElementById('h_wall_mat')?.value || 'brick_hollow',
+        wall_thick, insul_mat: document.getElementById('h_insul_mat')?.value || 'minwool',
+        insul_thick: parseFloat(insul_thick) || 0, window_area: win_area,
+        window_type: document.getElementById('h_win_type')?.value || 'double_chamber',
+        roof_area, roof_insul, floor_area, t_supply, t_return,
+        connection_type: document.getElementById('h_connection_type')?.value || 'side',
+        uf_area: parseFloat(uf_area) || 0,
+        uf_spacing: parseFloat(document.getElementById('h_uf_spacing')?.value) || 150,
+        pipe_velocity: velocity, gsop: gsop
+    };
     lastData.heat = data;
 
     try {
@@ -33,21 +49,32 @@ async function calcHeat() {
         if (gsop > 0 && comp) {
             const bgColor = comp.is_compliant ? '#f0fdf4' : '#fef2f2';
             const borderColor = comp.is_compliant ? '#22c55e' : '#ef4444';
-            const icon = comp.is_compliant ? '✅' : '⚠️';
-            complianceHtml = `<div class="result-box" style="background: ${bgColor}; border-color: ${borderColor}; grid-column: 1 / -1;"><h4 style="color: #1e293b;">Проверка энергоэффективности (СП 50.13330)</h4><div style="font-size: 16px; font-weight: 600; color: #1e293b; margin-top: 5px;">${icon} ${comp.message}</div><div style="font-size: 13px; color: #475569; margin-top: 5px;">Требуемое сопротивление R_треб = ${comp.r_req} (м²·°С)/Вт. Фактическое R_факт = ${res.r_wall} (м²·°С)/Вт.</div></div>`;
+            const statusText = comp.is_compliant ? 'Соответствует' : 'Не соответствует';
+            complianceHtml = `
+                <div class="result-box" style="background: ${bgColor}; border-color: ${borderColor}; grid-column: 1 / -1;">
+                    <h4 style="color: #1e293b;">Проверка энергоэффективности (СП 50.13330) <span class="info-icon" data-tooltip="R_треб = 0.00035 × ГСОП + 1.4"></span></h4>
+                    <div style="font-size: 16px; font-weight: 600; color: #1e293b; margin-top: 5px;">${statusText}: ${comp.message}</div>
+                    <div style="font-size: 13px; color: #475569; margin-top: 5px;">Требуемое сопротивление R_треб = ${comp.r_req} (м²·°С)/Вт. Фактическое R_факт = ${res.r_wall} (м²·°С)/Вт.</div>
+                </div>
+            `;
         }
 
-        // --- БЕЗОПАСНЫЙ ВЫВОД ГИДРАВЛИКИ ---
         let hydrDash = '';
         let hydrMethodology = '';
 
         if (hydr.error) {
             hydrDash = `<div class="result-box" style="background: #fef2f2; border-color: #ef4444;"><h4 style="color: #dc2626;">Гидравлика</h4><div class="value" style="color: #dc2626; font-size: 14px;">Ошибка Δt</div></div>`;
-            hydrMethodology = `<div class="formula-block" style="background: #fef2f2; border-left-color: #dc2626;"><b>10. Гидравлика системы отопления:</b><br><span style="color:red">Ошибка: ${hydr.error}. Проверьте температуры подачи и обратки (подача должна быть больше обратки).</span></div>`;
+            hydrMethodology = `<div class="formula-block" style="background: #fef2f2; border-left-color: #dc2626;"><b>10. Гидравлика системы отопления:</b><br><span style="color:red">Ошибка: ${hydr.error}. Проверьте температуры подачи и обратки.</span></div>`;
         } else {
             hydrDash = `
-                <div class="result-box" style="background: #fdf4ff; border-color: #f0abfc;"><h4 style="color: #86198f;">Гидравлика (Труба)</h4><div class="value" style="color: #86198f;">Ду${hydr.selected_d_mm} <span class="unit">мм</span></div></div>
-                <div class="result-box" style="background: #fdf4ff; border-color: #f0abfc;"><h4 style="color: #86198f;">Бак расширительный</h4><div class="value" style="color: #86198f;">${hydr.tank_volume_l} <span class="unit">л</span></div></div>
+                <div class="result-box" style="background: #fdf4ff; border-color: #f0abfc;">
+                    <h4 style="color: #86198f;">Гидравлика (Труба) <span class="info-icon" data-tooltip="D = √(4 × G / (3600 × π × v))"></span></h4>
+                    <div class="value" style="color: #86198f;">Ду${hydr.selected_d_mm} <span class="unit">мм</span></div>
+                </div>
+                <div class="result-box" style="background: #fdf4ff; border-color: #f0abfc;">
+                    <h4 style="color: #86198f;">Бак расширительный <span class="info-icon" data-tooltip="V_бака = V_системы × 0.1 × 1.5"></span></h4>
+                    <div class="value" style="color: #86198f;">${hydr.tank_volume_l} <span class="unit">л</span></div>
+                </div>
             `;
             hydrMethodology = `
                 <div class="formula-block" style="background: #fdf4ff; border-left-color: #d946ef;">
@@ -55,12 +82,11 @@ async function calcHeat() {
                     $$ G = \\frac{Q_{\\text{сум}}}{c \\times \\Delta t_{\\text{системы}}} = \\frac{${res.total_with_infiltration_w}}{4180 \\times (${data.t_supply} - ${data.t_return})} = \\mathbf{${hydr.flow_m3h} \\text{ м}^3/\\text{ч}} $$
                     $$ D = \\sqrt{\\frac{4 \\times G}{3600 \\times \\pi \\times v}} \\to \\text{принят стандартный } \\mathbf{\\text{Ду}${hydr.selected_d_mm} \\text{ мм}} $$
                     $$ V_{\\text{бака}} = V_{\\text{системы}} \\times 0.1 \\times 1.5 = \\mathbf{${hydr.tank_volume_l} \\text{ л}} $$
-                    <span class="norm-ref">СП 60.13330.2020, СП 41-102-98</span>
+                    <span class="sp-badge">СП 60.13330.2020, СП 41-102-98</span>
                 </div>
             `;
         }
 
-        // --- БЕЗОПАСНЫЙ ВЫВОД ТЕПЛОГО ПОЛА ---
         let ufHtml = '';
         let ufMethodology = '';
 
@@ -69,7 +95,16 @@ async function calcHeat() {
                 ufHtml = `<div class="result-box" style="background: #fef2f2; border-color: #ef4444; grid-column: 1 / -1;"><h4 style="color: #dc2626;">Тёплый пол</h4><div class="value" style="color: #dc2626; font-size: 14px;">${uf.error}</div></div>`;
                 ufMethodology = `<div class="formula-block" style="background: #fef2f2; border-left-color: #dc2626;"><b>11. Тёплый пол:</b><br><span style="color:red">Ошибка: ${uf.error}</span></div>`;
             } else {
-                ufHtml = `<div class="result-box" style="background: #eff6ff; border-color: #bfdbfe;"><h4>Труба теплого пола</h4><div class="value">${uf.total_pipe_length} <span class="unit">м</span></div></div><div class="result-box" style="background: #eff6ff; border-color: #bfdbfe;"><h4>Контуров (петель)</h4><div class="value">${uf.num_loops} <span class="unit">шт</span></div></div>`;
+                ufHtml = `
+                    <div class="result-box" style="background: #eff6ff; border-color: #bfdbfe;">
+                        <h4>Труба теплого пола <span class="info-icon" data-tooltip="L = (S / шаг) × 1.1"></span></h4>
+                        <div class="value">${uf.total_pipe_length} <span class="unit">м</span></div>
+                    </div>
+                    <div class="result-box" style="background: #eff6ff; border-color: #bfdbfe;">
+                        <h4>Контуров (петель) <span class="info-icon" data-tooltip="N = L / 80 м (макс. длина петли)"></span></h4>
+                        <div class="value">${uf.num_loops} <span class="unit">шт</span></div>
+                    </div>
+                `;
                 ufMethodology = `
                     <div class="formula-block" style="background: #f0fdf4; border-left-color: #22c55e;">
                         <b>11. Тёплый пол:</b><br>
@@ -82,20 +117,30 @@ async function calcHeat() {
 
         document.getElementById('h-dashboard').innerHTML = `
             ${complianceHtml}
-            <div class="result-box"><h4>Теплопотери стен</h4><div class="value">${res.q_wall_w.toLocaleString('ru-RU')} <span class="unit">Вт</span></div></div>
-            <div class="result-box"><h4>Общие с инфильтрацией</h4><div class="value">${res.total_with_infiltration_w.toLocaleString('ru-RU')} <span class="unit">Вт</span></div></div>
-            <div class="result-box" style="background: var(--success-bg); border-color: var(--success-border);"><h4 style="color: var(--success);">Мощность котла</h4><div class="value" style="color: var(--success);">${res.boiler_power_kw} <span class="unit">кВт</span></div></div>
+            <div class="result-box">
+                <h4>Теплопотери стен <span class="info-icon" data-tooltip="Q_стен = S_стен × (t_вн - t_нар) / R_стены"></span></h4>
+                <div class="value">${res.q_wall_w.toLocaleString('ru-RU')} <span class="unit">Вт</span></div>
+            </div>
+            <div class="result-box">
+                <h4>Общие с инфильтрацией <span class="info-icon" data-tooltip="Q_инф = Q_транс × 1.10"></span></h4>
+                <div class="value">${res.total_with_infiltration_w.toLocaleString('ru-RU')} <span class="unit">Вт</span></div>
+            </div>
+            <div class="result-box" style="background: var(--success-bg); border-color: var(--success-border);">
+                <h4 style="color: var(--success);">Мощность котла <span class="info-icon" data-tooltip="Q_котла = Q_инф × 1.15 (запас)"></span></h4>
+                <div class="value" style="color: var(--success);">${res.boiler_power_kw} <span class="unit">кВт</span></div>
+            </div>
             ${hydrDash}
             ${ufHtml}
         `;
 
         let compMethodology = (gsop > 0 && comp) ? `
             <div class="formula-block" style="background: #eff6ff; border-left-color: #2563eb;">
-                <b>Проверка энергоэффективности (СП 50.13330):</b><br>
+                <b>Проверка энергоэффективности:</b><br>
                 ГСОП = ${gsop}<br>
                 $$ R_{\\text{треб}} = 0.00035 \\times \\text{ГСОП} + 1.4 = \\mathbf{${comp.r_req} \\text{ (м}^2\\cdot^\\circ\\text{C)/Вт}} $$
                 $$ R_{\\text{факт}} = \\mathbf{${res.r_wall} \\text{ (м}^2\\cdot^\\circ\\text{C)/Вт}} $$
                 <b>Вывод:</b> ${comp.message}
+                <span class="sp-badge">СП 50.13330</span>
             </div>
         ` : '';
 
@@ -159,7 +204,12 @@ async function calcHeat() {
 
         document.getElementById('h-report').textContent = r.report;
         renderHeatCatalog();
-    } catch (e) { alert(e.message); }
+    } catch (e) {
+        if (!isAutoCalc) alert(e.message);
+        else console.error(e.message);
+    } finally {
+        isAutoCalc = false;
+    }
 }
 
 function renderHeatCatalog() {
@@ -180,7 +230,7 @@ function renderHeatCatalog() {
 
         catalog.innerHTML += `
             <div class="prof-warning">
-                <h3>⚠️ Требуется профессиональный подбор</h3>
+                <h3>Требуется профессиональный подбор</h3>
                 <p>В нашем каталоге не нашлось готового оборудования для заданных параметров. Обратитесь к проектировщику или напрямую к производителю (например, Buderus, De Dietrich) для индивидуального заказа.</p>
                 <div class="prof-missing-list">
                     <b>Недостающие позиции:</b><br>${missingHtml}

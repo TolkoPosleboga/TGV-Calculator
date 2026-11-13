@@ -1,50 +1,79 @@
 <div id="plan-view" class="view">
     <div class="view-header">
         <button class="btn-back" onclick="switchView('express')">← Назад к расчетам</button>
-        <h2>🏗️ Планировка здания (CAD)</h2>
+        <h2>Планировка здания</h2>
     </div>
 
-    <div style="display: flex; gap: 20px; height: 700px;">
+    <div style="display: flex; gap: 15px; height: calc(100vh - 150px); min-height: 500px;">
         <!-- ЛЕВАЯ ЧАСТЬ: Песочница -->
-        <div style="flex: 1; display: flex; flex-direction: column;">
-            <div class="toolbar" style="margin-bottom: 10px;">
-                <div class="toolbar-left">
-                    <button class="btn" style="margin: 0; padding: 8px 15px; width: auto; background: #3b82f6; font-size: 14px;" onclick="addNewFloor()">+ Новый этаж</button>
+        <div style="flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden;">
+            <div class="toolbar" style="margin: 0; border: none; border-bottom: 1px solid #e2e8f0; border-radius: 0; padding: 10px 15px; background: #f8fafc;">
+                <div class="toolbar-left" style="display: flex; gap: 10px;">
+                    <button class="btn" style="margin: 0; padding: 6px 12px; width: auto; background: #3b82f6; font-size: 13px;" onclick="addNewFloor()">+ Новый этаж</button>
+                    <button class="btn" style="margin: 0; padding: 6px 12px; width: auto; background: #10b981; font-size: 13px;" onclick="createManualRoom()">+ Комната</button>
+                    <button class="btn" style="margin: 0; padding: 6px 12px; width: auto; background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; font-size: 13px;" onclick="clearCurrentFloor()">Очистить</button>
                 </div>
-                <div class="toolbar-right">
-                    <span style="font-size: 14px; font-weight: 600; color: #475569;">Инструмент: <span id="current-tool-label" style="color: #3b82f6;">Выбор</span></span>
+
+                <div class="toolbar-right" style="display: flex; gap: 10px; align-items: center;">
+                    <div style="width: 1px; height: 20px; background: #cbd5e1; margin: 0 5px;"></div>
+                    <button class="btn-toolbar" style="background: #fff; border: 1px solid #cbd5e1; padding: 4px 10px; font-weight: bold; font-size: 14px;" onclick="zoomOut()">-</button>
+                    <button class="btn-toolbar" style="background: #fff; border: 1px solid #cbd5e1; padding: 4px 10px; font-weight: bold; font-size: 14px;" onclick="zoomIn()">+</button>
                 </div>
             </div>
 
             <!-- СЕРАЯ ОБЛАСТЬ (КАНВАС) -->
-            <div id="plan-canvas" style="position: relative; flex: 1; background: #e2e8f0; border-radius: 12px; overflow: auto; border: 1px solid #cbd5e1;">
-                <div style="position: absolute; top: 15px; left: 15px; background: rgba(255,255,255,0.9); padding: 8px 15px; border-radius: 8px; font-weight: 800; color: #1e293b; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); pointer-events: none;">
+            <div id="plan-canvas" style="position: relative; flex: 1; background: #e2e8f0; overflow: auto;">
+                <div style="position: absolute; top: 15px; left: 15px; background: rgba(255,255,255,0.9); padding: 6px 12px; border-radius: 4px; font-weight: 600; color: #0f172a; z-index: 100; border: 1px solid #cbd5e1; pointer-events: none;">
                     <span id="current-floor-name">1 этаж</span>
                 </div>
-                <!-- ВНУТРЕННИЙ СЛОЙ -->
                 <div id="plan-inner" style="position: absolute; top: 50px; left: 50px; min-width: 100%; min-height: 100%;"></div>
             </div>
 
-            <div id="floor-tabs" style="display: flex; gap: 10px; margin-top: 15px;"></div>
+            <div id="floor-tabs" style="display: flex; gap: 10px; padding: 10px 15px; background: #f8fafc; border-top: 1px solid #e2e8f0; min-height: 50px;"></div>
         </div>
 
         <!-- ПРАВАЯ ЧАСТЬ: Инструменты и Список комнат -->
-        <div style="width: 280px; display: flex; flex-direction: column; gap: 15px;">
+        <div style="width: 240px; display: flex; flex-direction: column; gap: 15px;">
 
-            <!-- Инструменты -->
-            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                <h3 style="font-size: 16px; color: #0f172a; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Инструменты</h3>
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <button class="btn" id="tool-select" style="margin: 0; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;" onclick="setTool('select')">🖱️ Выбор / Движение</button>
-                    <button class="btn" id="tool-window" style="margin: 0; background: #f8fafc; color: #1e293b; border: 1px solid #e2e8f0;" onclick="setTool('window')">🪟 Окно</button>
-                    <button class="btn" id="tool-door" style="margin: 0; background: #f8fafc; color: #1e293b; border: 1px solid #e2e8f0;" onclick="setTool('door')">🚪 Дверь</button>
+            <!-- Инструменты (Сетка иконок) -->
+            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px;">
+                <h3 style="font-size: 12px; color: #64748b; margin-bottom: 10px; text-transform: uppercase; text-align: center;">Инструменты</h3>
+
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                    <button class="tool-btn" id="tool-select" title="Выбор / Движение" style="padding: 10px; font-size: 18px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; display: flex; justify-content: center; align-items: center;" onclick="setTool('select')">🖱️</button>
+                    <button class="tool-btn" id="tool-name" title="Автонумерация (по клику)" style="padding: 10px; font-size: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; display: flex; justify-content: center; align-items: center;" onclick="setTool('name')">🏷️</button>
+                    <button class="tool-btn" id="tool-window" title="Окно" style="padding: 10px; font-size: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; display: flex; justify-content: center; align-items: center;" onclick="setTool('window')">🪟</button>
+                    <button class="tool-btn" id="tool-door" title="Дверь" style="padding: 10px; font-size: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; display: flex; justify-content: center; align-items: center;" onclick="setTool('door')">🚪</button>
+                    <button class="tool-btn" id="tool-passage" title="Проем (между комнатами)" style="padding: 10px; font-size: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; display: flex; justify-content: center; align-items: center;" onclick="setTool('passage')">📏</button>
+                    <button class="tool-btn" id="tool-stairs" title="Лестница" style="padding: 10px; font-size: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; display: flex; justify-content: center; align-items: center;" onclick="setTool('stairs')">🪜</button>
                 </div>
             </div>
 
+            <!-- РАЗМЕРЫ АКТИВНОЙ КОМНАТЫ -->
+            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px;">
+                <h3 style="font-size: 12px; color: #64748b; margin-bottom: 10px; text-transform: uppercase; text-align: center;">Размеры комнаты</h3>
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 10px; color: #64748b; font-weight: 600; display: block; margin-bottom: 2px;">Ширина (м)</label>
+                        <input type="number" id="dim_width" min="1" step="1" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; text-align: center;" oninput="updateDimensionsFromInputs()">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 10px; color: #64748b; font-weight: 600; display: block; margin-bottom: 2px;">Длина (м)</label>
+                        <input type="number" id="dim_length" min="1" step="1" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; text-align: center;" oninput="updateDimensionsFromInputs()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- СВОЙСТВА ВЫБРАННОГО ЭЛЕМЕНТА -->
+            <div id="element-props-panel" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; display: none;">
+                <h3 style="font-size: 12px; color: #64748b; margin-bottom: 10px; text-transform: uppercase; text-align: center;">Свойства элемента</h3>
+                <div id="element-props-content"></div>
+            </div>
+
             <!-- Неустановленные комнаты -->
-            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); flex: 1; overflow-y: auto;">
-                <h3 style="font-size: 16px; color: #0f172a; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Неустановленные комнаты</h3>
-                <div id="unplaced-rooms-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
+                <h3 style="font-size: 12px; color: #64748b; margin-bottom: 10px; text-transform: uppercase; text-align: center; flex-shrink: 0;">Неустановленные комнаты</h3>
+                <div id="unplaced-rooms-list" style="display: flex; flex-direction: column; gap: 10px; overflow-y: auto; flex: 1;">
                     <!-- Сюда падают комнаты -->
                 </div>
             </div>

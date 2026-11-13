@@ -1,7 +1,7 @@
 <div id="express-view" class="view">
     <div class="view-header">
         <button class="btn-back" onclick="switchView('home')">← На главную</button>
-        <h2>⚡ Экспресс-расчет</h2>
+        <h2>Экспресс-расчет</h2>
     </div>
 
     <!-- ПАНЕЛЬ ВЫБОРА ЭТАЖА, КОМНАТЫ И ГОРОДА -->
@@ -47,12 +47,12 @@
         </div>
         <div class="toolbar-right">
             <input type="file" id="excel-import-input" accept=".xlsx, .xls" style="display: none;" onchange="importExcelFile(this)">
-            <button onclick="document.getElementById('excel-import-input').click()" class="btn-toolbar" style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;">📥 Импорт</button>
-            <button onclick="switchView('plan'); renderPlan();" class="btn-toolbar" style="background: #fdf4ff; color: #86198f; border: 1px solid #f0abfc;">🏗️ Планировка</button>
-            <button onclick="switchView('balance')" class="btn-toolbar btn-example">⚖️ Баланс</button>
-            <button onclick="fillRandomExample()" class="btn-toolbar btn-example">🎲 Пример</button>
-            <button onclick="shareLink()" class="btn-toolbar btn-share">🔗 Поделиться</button>
-            <button onclick="clearAll()" class="btn-toolbar btn-clear">🗑️ Сбросить</button>
+            <button onclick="document.getElementById('excel-import-input').click()" class="btn-toolbar" style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;">Импорт</button>
+            <button onclick="switchView('plan'); renderPlan();" class="btn-toolbar" style="background: #fdf4ff; color: #86198f; border: 1px solid #f0abfc;">Планировка</button>
+            <button onclick="switchView('balance')" class="btn-toolbar btn-example">Баланс</button>
+            <button onclick="fillRandomExample()" class="btn-toolbar btn-example">Пример</button>
+            <button onclick="shareLink()" class="btn-toolbar btn-share">Поделиться</button>
+            <button onclick="clearAll()" class="btn-toolbar btn-clear">Сбросить</button>
         </div>
     </div>
 
@@ -63,14 +63,18 @@
 
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('vent')" id="btn-vent">Вентиляция</button>
+            <button class="tab-btn" onclick="switchTab('vent-ext')" id="btn-vent-ext">Доп. расчеты</button>
             <button class="tab-btn" onclick="switchTab('heat')" id="btn-heat">Отопление</button>
             <button class="tab-btn" onclick="switchTab('ac')" id="btn-ac">Кондиционирование</button>
             <button class="tab-btn" onclick="switchTab('gas')" id="btn-gas">Газоснабжение</button>
+            <button class="tab-btn" onclick="switchTab('smoke')" id="btn-smoke">Дымоудаление</button>
         </div>
 
         {% include 'partials/tabs/vent.html' %}
+        {% include 'partials/tabs/vent_ext.html' %}
         {% include 'partials/tabs/heat.html' %}
         {% include 'partials/tabs/ac.html' %}
         {% include 'partials/tabs/gas.html' %}
+        {% include 'partials/tabs/smoke.html' %}
     </div>
 </div>

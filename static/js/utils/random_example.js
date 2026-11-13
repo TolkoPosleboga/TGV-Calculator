@@ -47,7 +47,21 @@ function fillRandomExample() {
         'g_chimney_height': [4, 5, 6, 8, 10],
         'g_window_area': [0.5, 1.0, 1.5, 2.0],
         'g_pipe_length': [5, 10, 15, 20, 30],
-        'g_local_zeta': [1.0, 3.0, 5.0, 8.0, 10.0]
+        'g_local_zeta': [1.0, 3.0, 5.0, 8.0, 10.0],
+
+        'nv_height': [3.0, 3.3, 5.0, 7.5, 10.0, 15.0],
+        'nv_area': [0.02, 0.04, 0.06, 0.1, 0.25],
+        'nv_zeta': [1.5, 2.0, 2.5, 3.0, 4.0],
+        'se_door_width': [0.8, 0.9, 1.0, 1.2],
+        'se_door_height': [2.0, 2.1, 2.2],
+        'se_num_doors': [1, 2, 3, 4],
+        'pr_door_width': [0.9, 1.0, 1.2, 1.5],
+        'pr_door_height': [2.0, 2.1, 2.2],
+        'pr_num_floors': [1, 2, 3, 5, 9, 12, 16, 25],
+
+        'ext_cond_t_air': [18, 20, 22, 24, 26],
+        'ext_cond_hum': [40, 50, 60, 70, 80],
+        'ext_cond_insul': [0, 10, 20, 30, 50]
     };
 
     const selects = {

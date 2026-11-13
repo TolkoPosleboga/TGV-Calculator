@@ -5,37 +5,31 @@ let humidityData = [];
 
 async function loadCities() {
     try {
-        // 1. Загружаем ГОРОДА (критически важный файл)
         const citiesResp = await fetch('/static/data/cities_climate.json');
         if (citiesResp.ok) {
             let rawCities = await citiesResp.json();
             citiesData = rawCities.filter((city, index, self) => index === self.findIndex((c) => c.name === city.name));
             citiesData.sort((a, b) => a.name.localeCompare(b.name));
-        } else {
-            console.error("Файл cities_climate.json не найден!");
         }
 
-        // 2. Загружаем остальные справочники (необязательные)
-        try { const r = await fetch('/static/data/enthalpy_climate.json'); if(r.ok) enthalpyData = await r.json(); } catch(e){ console.warn("Нет энтальпии"); }
-        try { const r = await fetch('/static/data/pressure_climate.json'); if(r.ok) pressureData = await r.json(); } catch(e){ console.warn("Нет давления"); }
-        try { const r = await fetch('/static/data/humidity_climate.json'); if(r.ok) humidityData = await r.json(); } catch(e){ console.warn("Нет влажности"); }
+        try { const r = await fetch('/static/data/enthalpy_climate.json'); if(r.ok) enthalpyData = await r.json(); } catch(e){}
+        try { const r = await fetch('/static/data/pressure_climate.json'); if(r.ok) pressureData = await r.json(); } catch(e){}
+        try { const r = await fetch('/static/data/humidity_climate.json'); if(r.ok) humidityData = await r.json(); } catch(e){}
 
-        // 3. Заполняем выпадающий список
         populateGlobalCity();
 
-        // 4. Восстанавливаем сохраненный город
         const savedData = JSON.parse(localStorage.getItem('calc_saved_data') || '{}');
         const globalCitySelect = document.getElementById('global_city');
         if (globalCitySelect) {
             const savedCity = savedData['global_city'] || savedData['v_city'];
             if (savedCity) {
                 globalCitySelect.value = savedCity;
-                onGlobalCityChange(savedCity, true); // true = не сохранять в localStorage (чтобы не было рекурсии)
+                onGlobalCityChange(savedCity, true);
             }
         }
 
     } catch (e) {
-        console.error('Критическая ошибка загрузки справочников', e);
+        console.error('Ошибка загрузки справочников', e);
     }
 }
 
@@ -45,10 +39,7 @@ function populateGlobalCity() {
 
     select.innerHTML = '<option value="">Выберите город...</option>';
 
-    if (!citiesData || !Array.isArray(citiesData) || citiesData.length === 0) {
-        console.error("Список городов пуст!");
-        return;
-    }
+    if (!citiesData || citiesData.length === 0) return;
 
     citiesData.forEach(city => {
         const option = document.createElement('option');
@@ -67,13 +58,19 @@ function onGlobalCityChange(cityName, isSilent = false) {
     const pressure = pressInfo ? pressInfo.pressure : 101325.0;
     const humInfo = humidityData.find(h => h.name === cityName);
 
-    // 1. Вентиляция и Отопление
+    // 1. Вентиляция, Отопление, Дымоудаление, Доп. расчеты
     ['v', 'h'].forEach(prefix => {
         const tField = document.getElementById(`${prefix}_t_out`);
         const gsopField = document.getElementById(`${prefix}_gsop`);
         if (tField) tField.value = city.temp_5d_092;
         if (gsopField) gsopField.value = city.gsop || 0;
     });
+
+    const nvTOut = document.getElementById('nv_t_out');
+    if (nvTOut) nvTOut.value = city.temp_5d_092;
+
+    const extCondTOut = document.getElementById('ext_cond_t_out');
+    if (extCondTOut) extCondTOut.value = city.temp_5d_092;
 
     // 2. Газ
     const gTField = document.getElementById('g_t_out');
@@ -116,17 +113,11 @@ function onGlobalCityChange(cityName, isSilent = false) {
     if (!isSilent) {
         const savedData = JSON.parse(localStorage.getItem('calc_saved_data') || '{}');
         savedData['global_city'] = cityName;
-
-        // Удаляем старые ключи, чтобы не было конфликтов
-        delete savedData['v_city']; delete savedData['h_city'];
-        delete savedData['g_city']; delete savedData['ac_city']; delete savedData['bim_city'];
-
         savedData['v_t_out'] = city.temp_5d_092;
-        savedData['v_gsop'] = city.gsop || 0;
         savedData['h_t_out'] = city.temp_5d_092;
-        savedData['h_gsop'] = city.gsop || 0;
         savedData['g_t_out'] = city.temp_5d_092;
-        savedData['g_gsop'] = city.gsop || 0;
+        savedData['nv_t_out'] = city.temp_5d_092;
+        savedData['ext_cond_t_out'] = city.temp_5d_092;
 
         localStorage.setItem('calc_saved_data', JSON.stringify(savedData));
 
@@ -135,6 +126,9 @@ function onGlobalCityChange(cityName, isSilent = false) {
             saveRoomsToStorage();
         }
     }
+
+    if (typeof debouncedCalcNaturalVent === 'function') debouncedCalcNaturalVent();
+    if (typeof debouncedCalcCondensation === 'function') debouncedCalcCondensation();
 }
 
 window.addEventListener('load', loadCities);
