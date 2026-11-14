@@ -10,6 +10,7 @@ class HeatingSolution(BaseModel):
     model: str
     type: str
     power_kw: float
+    section_power_kw: float = 0.0
     price_rub: int
     url: str
     note: Optional[str] = None
@@ -38,7 +39,7 @@ EQUIPMENT_CATALOG_HEAT: List[HeatingSolution] = [
                     type="Радиатор панельный", power_kw=1.9, price_rub=11800, url="https://purmo.ru",
                     note="Стальной панельный, 1.9 кВт"),
     HeatingSolution(id=7, category="radiator", segment="basic", brand="Rifar", model="Monolit 500 (10 секций)",
-                    type="Радиатор секционный", power_kw=2.0, price_rub=9500, url="https://rifar.ru",
+                    type="Радиатор секционный", power_kw=2.0, section_power_kw=0.20, price_rub=9500, url="https://rifar.ru",
                     note="Алюминиевый, 2.0 кВт"),
 
     # Насосы
@@ -66,7 +67,7 @@ EQUIPMENT_CATALOG_HEAT: List[HeatingSolution] = [
 
     # Промышленные радиаторы
     HeatingSolution(id=104, category="radiator", segment="industrial", brand="МС", model="МС-140 (7 секций)",
-                    type="Радиатор чугунный", power_kw=1.1, price_rub=4500,
+                    type="Радиатор чугунный", power_kw=1.1, section_power_kw=0.157, price_rub=4500,
                     url="https://yandex.ru/search/?text=радиатор МС-140", note="Чугунный секционный, 1.1 кВт"),
     HeatingSolution(id=105, category="radiator", segment="industrial", brand="Пурмо", model="Ventil Compact C22",
                     type="Радиатор панельный", power_kw=4.5, price_rub=35000, url="https://purmo.ru",

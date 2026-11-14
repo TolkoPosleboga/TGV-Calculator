@@ -77,9 +77,9 @@ function loadFloorTemplate() {
             id: Date.now() + index, name: roomName, width: w, length: l, x: r.x, y: r.y,
             isPlaced: true, windows: windows, doors: doors,
             data: {
-                v_width: w, v_length: l, v_height: h, v_win_area: winArea,
-                h_length: l, h_width: w, h_height: h, h_wall_area: wallArea, h_win_area: winArea,
-                ac_area: w * l, ac_height: h, ac_window_area: winArea,
+                v_width: w, v_length: l, v_height: h, v_win_area: parseFloat(winArea.toFixed(2)),
+                h_length: l, h_width: w, h_height: h, h_wall_area: parseFloat(wallArea.toFixed(2)), h_win_area: parseFloat(winArea.toFixed(2)),
+                ac_area: parseFloat((w * l).toFixed(2)), ac_height: h, ac_window_area: parseFloat(winArea.toFixed(2)),
                 v_room_type: r.type, h_room_type: r.type, ac_room_type: r.type
             },
             supply: 0, exhaust: 0
@@ -134,6 +134,10 @@ function addApartmentTemplate() {
     let addedCount = 0;
 
     apartmentRooms.forEach(r => {
+        const winArea = parseFloat((r.w * r.l * 0.15).toFixed(2));
+        const wallArea = parseFloat((2 * (r.w + r.l) * 3.0 - winArea).toFixed(2));
+        const floorArea = parseFloat((r.w * r.l).toFixed(2));
+
         const newRoom = {
             id: Date.now() + Math.floor(Math.random() * 10000),
             name: `${r.baseName} (Кв. ${newAptNum})`,
@@ -145,16 +149,16 @@ function addApartmentTemplate() {
             doors: [],
             isPlaced: true,
             data: {
-                v_width: r.w, v_length: r.l, v_height: 3.0,
+                v_width: r.w, v_length: r.l, v_height: 3.0, v_win_area: winArea,
                 v_people: r.people, v_heat: r.heat, v_moisture: r.moisture,
                 v_hazard: r.hazard, v_mpc: r.mpc, v_t_in: r.type === 'bathroom' ? 24 : 20,
-                v_room_type: r.type, v_win_area: 0, v_system_type: 'exhaust',
+                v_room_type: r.type, v_system_type: 'exhaust',
 
                 h_length: r.l, h_width: r.w, h_height: 3.0,
-                h_wall_area: 2 * (r.w + r.l) * 3.0, h_win_area: 0, h_floor_area: r.w * r.l,
+                h_wall_area: wallArea, h_win_area: winArea, h_floor_area: floorArea,
                 h_room_type: r.type, h_t_in: r.type === 'bathroom' ? 24 : 20,
 
-                ac_area: r.w * r.l, ac_height: 3.0, ac_people: r.people, ac_window_area: 0,
+                ac_area: floorArea, ac_height: 3.0, ac_people: r.people, ac_window_area: winArea,
                 ac_room_type: r.type, ac_t_in: 24,
 
                 g_length: r.l, g_width: r.w, g_room_height: 3.0,

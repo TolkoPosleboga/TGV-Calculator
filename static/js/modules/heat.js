@@ -259,8 +259,27 @@ function renderHeatCatalog() {
             const isIndustrial = s.segment === 'industrial';
             const industrialBadge = isIndustrial ? `<div class="industrial-badge">Промышленный</div>` : '';
 
-            let specText = s.category === 'pump' ? `Расход: до 3.5 м³/ч` : `Мощность: ${s.power_kw} кВт`;
-            if (s.category === 'radiator') specText = `Мощность: ${s.power_kw} кВт (паспорт) / ${(s.power_kw * currentHeatData.radiator_correction.power_factor).toFixed(1)} кВт (реал)`;
+            let specText = '';
+            if (s.category === 'pump') {
+                specText = `Расход: до 3.5 м³/ч`;
+            } else if (s.category === 'boiler') {
+                specText = `Мощность: ${s.power_kw} кВт`;
+            } else if (s.category === 'radiator') {
+                const req_heat = (currentHeatData.results && currentHeatData.results.total_with_infiltration_w) ? currentHeatData.results.total_with_infiltration_w / 1000 : 0;
+                const factor = (currentHeatData.radiator_correction && currentHeatData.radiator_correction.power_factor) ? currentHeatData.radiator_correction.power_factor : 1.0;
+                const actual_power = s.power_kw * factor;
+
+                if (s.section_power_kw && s.section_power_kw > 0) {
+                    const actual_sec_power = s.section_power_kw * factor;
+                    const sections = Math.max(1, Math.ceil(req_heat / actual_sec_power));
+                    specText = `Требуется секций: <b style="color:var(--primary); font-size:16px;">${sections} шт</b><br>
+                                <small style="color:#64748b;">Мощность 1 секции: ${actual_sec_power.toFixed(3)} кВт</small>`;
+                } else {
+                    const radiators = Math.max(1, Math.ceil(req_heat / actual_power));
+                    specText = `Требуется радиаторов: <b style="color:var(--primary); font-size:16px;">${radiators} шт</b><br>
+                                <small style="color:#64748b;">Мощность 1 шт: ${actual_power.toFixed(2)} кВт</small>`;
+                }
+            }
 
             grid.innerHTML += `
                 <div class="sol-card ${isBest ? 'best-choice' : ''}">
@@ -268,7 +287,7 @@ function renderHeatCatalog() {
                     ${industrialBadge}
                     <div class="sol-title">${s.model}</div>
                     <div class="sol-brand">${s.brand} | ${s.type}</div>
-                    <div class="sol-specs"><span class="sol-spec">${specText}</span></div>
+                    <div class="sol-specs" style="margin-bottom: 8px;"><span class="sol-spec">${specText}</span></div>
                     <div class="sol-price">${s.price_rub.toLocaleString('ru-RU')} ₽</div>
                     <a href="${s.url}" target="_blank" class="sol-link">Найти на сайте</a>
                 </div>

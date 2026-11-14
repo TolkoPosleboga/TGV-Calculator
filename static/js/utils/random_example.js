@@ -77,16 +77,16 @@ function fillRandomExample() {
                 }
 
                 const wallArea = 2 * (w + l) * h;
-                const winArea = parseFloat((w * l * 0.15).toFixed(1));
+                const winArea = parseFloat((w * l * 0.15).toFixed(2));
 
                 room.data.h_width = w;
                 room.data.h_length = l;
-                room.data.h_wall_area = parseFloat((wallArea - winArea).toFixed(1));
+                room.data.h_wall_area = parseFloat((wallArea - winArea).toFixed(2));
                 room.data.h_win_area = winArea;
-                room.data.h_floor_area = parseFloat((w * l).toFixed(1));
-                room.data.h_roof_area = parseFloat((w * l).toFixed(1));
+                room.data.h_floor_area = parseFloat((w * l).toFixed(2));
+                room.data.h_roof_area = parseFloat((w * l).toFixed(2));
 
-                room.data.ac_area = parseFloat((w * l).toFixed(1));
+                room.data.ac_area = parseFloat((w * l).toFixed(2));
                 room.data.ac_people = ppl;
                 room.data.ac_window_area = winArea;
 

@@ -235,11 +235,37 @@ function getVal(id, name) {
     }
     return val;
 }
-function toggleDrawer() {
+// ... (верхняя часть main.js без изменений) ...
+
+// Функции для управления шторкой
+function openDrawer() {
     const drawer = document.getElementById('side-drawer');
     const overlay = document.getElementById('drawer-overlay');
     if (drawer && overlay) {
-        drawer.classList.toggle('open');
-        overlay.classList.toggle('open');
+        drawer.classList.add('open');
+        overlay.classList.add('open');
     }
 }
+
+function closeDrawer() {
+    const drawer = document.getElementById('side-drawer');
+    const overlay = document.getElementById('drawer-overlay');
+    if (drawer && overlay) {
+        drawer.classList.remove('open');
+        overlay.classList.remove('open');
+    }
+}
+
+// Инициализация зоны наведения при загрузке страницы
+window.addEventListener('load', () => {
+    const hoverZone = document.getElementById('drawer-hover-zone');
+    const drawer = document.getElementById('side-drawer');
+
+    if (hoverZone && drawer) {
+        // Как только мышь заходит в левую 15-пиксельную зону — открываем
+        hoverZone.addEventListener('mouseenter', openDrawer);
+
+        // Как только мышь уходит со шторки вправо (на основной экран) — закрываем
+        drawer.addEventListener('mouseleave', closeDrawer);
+    }
+});

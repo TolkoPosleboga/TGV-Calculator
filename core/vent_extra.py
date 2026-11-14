@@ -69,3 +69,73 @@ def calculate_condensation_check(
         "is_condensation": is_condensation,
         "req_insul_mm": req_insul_mm
     }
+
+
+def calculate_water_heater(
+        L_m3h: float,
+        t_air_in: float,
+        t_air_out: float,
+        t_w_in: float,
+        t_w_out: float
+) -> Dict[str, Any]:
+    if t_air_out <= t_air_in:
+        return {"error": "Температура воздуха на выходе должна быть выше, чем на входе"}
+    if t_w_in <= t_w_out:
+        return {"error": "Температура подачи воды должна быть выше обратки"}
+
+    # Q = L * rho * c * dt / 3600 (в кВт)
+    q_kw = (L_m3h * 1.2 * 1.005 * (t_air_out - t_air_in)) / 3600.0
+
+    # G = 3.6 * Q / (c_w * dt_w) (в м3/ч)
+    g_w_m3h = (3.6 * q_kw) / (4.18 * (t_w_in - t_w_out))
+
+    # Скорость воды в трубках (примем условный диаметр 15 мм для оценки)
+    d_inner = 0.015
+    area = math.pi * (d_inner ** 2) / 4.0
+    v_water = (g_w_m3h / 3600.0) / area
+
+    warning = ""
+    if v_water > 1.5:
+        warning = "Скорость воды в трубках выше 1.5 м/с. Возможен шум. Рекомендуется увеличить диаметр патрубков."
+    elif v_water < 0.2:
+        warning = "Скорость воды слишком низкая. Возможно завоздушивание системы."
+
+    return {
+        "q_kw": round(q_kw, 2),
+        "g_w_m3h": round(g_w_m3h, 3),
+        "g_w_ls": round(g_w_m3h * 1000 / 3600, 2),
+        "v_water": round(v_water, 2),
+        "warning": warning
+    }
+
+
+def calculate_diaphragm(dP_pa: float, D_mm: float, L_m3h: float) -> Dict[str, Any]:
+    if dP_pa <= 0:
+        return {"error": "Гасимое давление должно быть больше нуля"}
+    if D_mm <= 0 or L_m3h <= 0:
+        return {"error": "Диаметр воздуховода и расход должны быть больше нуля"}
+
+    area_m2 = math.pi * ((D_mm / 1000.0) ** 2) / 4.0
+    v_ms = L_m3h / 3600.0 / area_m2
+
+    # Динамическое давление
+    Pd_pa = 1.2 * (v_ms ** 2) / 2.0
+
+    # Требуемый коэффициент местного сопротивления
+    zeta_req = dP_pa / Pd_pa if Pd_pa > 0 else 0
+
+    # Диаметр отверстия диафрагмы (упрощенная формула для тонкой шайбы)
+    # zeta = (D^2/d^2 - 1)^2  =>  d = D / sqrt(sqrt(zeta) + 1)
+    d_hole_mm = D_mm / math.sqrt(math.sqrt(zeta_req) + 1)
+
+    warning = ""
+    if d_hole_mm < 20:
+        warning = "Диаметр отверстия менее 20 мм. Диафрагма может забиваться пылью."
+
+    return {
+        "zeta": round(zeta_req, 1),
+        "Pd": round(Pd_pa, 1),
+        "d_hole_mm": round(d_hole_mm, 1),
+        "velocity": round(v_ms, 2),
+        "warning": warning
+    }

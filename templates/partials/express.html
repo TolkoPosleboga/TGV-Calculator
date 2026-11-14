@@ -1,10 +1,13 @@
 <div id="express-view" class="view">
+    <!-- Невидимая зона для вызова шторки -->
+    <div id="drawer-hover-zone"></div>
+
     <!-- Шторка с инструментами -->
-    <div id="drawer-overlay" class="drawer-overlay" onclick="toggleDrawer()"></div>
+    <div id="drawer-overlay" class="drawer-overlay" onclick="closeDrawer()"></div>
     <div id="side-drawer" class="side-drawer">
         <div class="drawer-header">
             <h3>Инструменты</h3>
-            <button class="btn-close-drawer" onclick="toggleDrawer()">✖</button>
+            <button class="btn-close-drawer" onclick="closeDrawer()">✖</button>
         </div>
         <div class="drawer-body">
             <div style="margin-bottom: 20px;">
@@ -16,8 +19,9 @@
             </div>
 
             <div class="drawer-section-title">Файл</div>
-            <input type="file" id="excel-import-input" accept=".xlsx, .xls" style="display: none;" onchange="importExcelFile(this)">
+            <input type="file" id="excel-import-input" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelImport(this)">
             <button onclick="document.getElementById('excel-import-input').click()" class="btn-drawer-item">Импорт из Excel</button>
+            <button onclick="downloadImportTemplate()" class="btn-drawer-item">Скачать шаблон Excel</button>
             <button onclick="shareLink()" class="btn-drawer-item">Поделиться ссылкой</button>
 
             <div class="drawer-section-title">Переходы</div>
@@ -34,7 +38,6 @@
     <div class="view-header" style="display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 15px;">
             <button class="btn-back" onclick="switchView('home')">← На главную</button>
-            <button class="btn-menu" onclick="toggleDrawer()">☰ Меню</button>
             <h2>Экспресс-расчет</h2>
         </div>
     </div>

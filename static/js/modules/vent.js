@@ -176,6 +176,7 @@ async function calcVent(isAuto = false) {
             shape: sec.shape,
             material: sec.material,
             resistances: sec.resistances.map(r => ({
+                type: r.type,
                 name: ZETA_LIBRARY[r.type] ? ZETA_LIBRARY[r.type].name : 'Элемент',
                 qty: r.qty,
                 zeta: r.zeta
@@ -347,7 +348,11 @@ async function calcVent(isAuto = false) {
             sectionsData.forEach(sec => {
                 totalLength += sec.length;
                 sec.resistances.forEach(res => {
-                    if (res.type.includes('bend') || res.type.includes('tee')) bendsCount += res.qty;
+                    const t = (res.type || '').toLowerCase();
+                    const n = (ZETA_LIBRARY[res.type]?.name || '').toLowerCase();
+                    if (t.includes('bend') || t.includes('tee') || n.includes('отвод') || n.includes('колено') || n.includes('тройник')) {
+                        bendsCount += res.qty;
+                    }
                 });
             });
 

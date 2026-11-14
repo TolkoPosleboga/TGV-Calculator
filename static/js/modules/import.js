@@ -1,3 +1,25 @@
+async function downloadImportTemplate() {
+    try {
+        const response = await fetch('/api/import/template');
+        if (!response.ok) {
+            const err = await response.text();
+            throw new Error(`Сервер вернул ${response.status}: ${err}`);
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Шаблон_импорта_помещений.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    } catch (e) {
+        alert('Не удалось скачать шаблон: ' + e.message);
+    }
+}
+
 async function importExcelFile(input) {
     if (!input.files || input.files.length === 0) return;
 
@@ -6,8 +28,8 @@ async function importExcelFile(input) {
     formData.append('file', file);
 
     const btn = document.querySelector('button[onclick*="excel-import-input"]');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '⏳ Чтение...';
+    const originalText = btn ? btn.innerHTML : 'Импорт';
+    if (btn) btn.innerHTML = '⏳ Чтение...';
 
     try {
         const response = await fetch('/api/import/excel', {
@@ -26,11 +48,16 @@ async function importExcelFile(input) {
             return;
         }
 
-        // Очищаем комнаты ТЕКУЩЕГО этажа
-        const activeFloor = appFloors.find(f => f.id === activeFloorId);
-        if (activeFloor) {
-            activeFloor.rooms = [];
+        // Ищем активный этаж с приведением типов (чтобы строка "1" и число 1 совпадали)
+        const activeFloor = appFloors.find(f => String(f.id) === String(activeFloorId));
+
+        if (!activeFloor) {
+            alert('Ошибка: Активный этаж не найден. Попробуйте обновить страницу.');
+            return;
         }
+
+        // Очищаем комнаты ТЕКУЩЕГО этажа
+        activeFloor.rooms = [];
 
         // Создаем комнаты
         roomsData.forEach((room, index) => {
@@ -55,29 +82,29 @@ async function importExcelFile(input) {
                     h_length: room.length,
                     h_width: room.width,
                     h_height: room.height,
-                    ac_area: room.length * room.width,
+                    ac_area: parseFloat((room.length * room.width).toFixed(2)),
                     ac_height: room.height,
                     ac_people: room.people
                 },
                 supply: 0,
                 exhaust: 0
             };
-            if (activeFloor) activeFloor.rooms.push(newRoom);
+            activeFloor.rooms.push(newRoom);
         });
 
         // Делаем первую импортированную комнату активной
-        if (activeFloor && activeFloor.rooms.length > 0) {
+        if (activeFloor.rooms.length > 0) {
             activeRoomId = activeFloor.rooms[0].id;
         }
 
-        saveRoomsToStorage();
-        renderRoomSelector();
-        updateRoomTitle();
-        loadActiveRoomData();
+        if (typeof saveRoomsToStorage === 'function') saveRoomsToStorage();
+        if (typeof renderRoomSelector === 'function') renderRoomSelector();
+        if (typeof updateRoomTitle === 'function') updateRoomTitle();
+        if (typeof loadActiveRoomData === 'function') loadActiveRoomData();
 
         // Если мы на вкладке планировки — перерисуем
-        if (document.getElementById('plan-view').classList.contains('active')) {
-            renderPlan();
+        if (document.getElementById('plan-view') && document.getElementById('plan-view').classList.contains('active')) {
+            if (typeof renderPlan === 'function') renderPlan();
         }
 
         alert(`Успешно импортировано помещений: ${roomsData.length}!`);
@@ -85,7 +112,7 @@ async function importExcelFile(input) {
     } catch (e) {
         alert("Ошибка импорта: " + e.message);
     } finally {
-        btn.innerHTML = originalText;
+        if (btn) btn.innerHTML = originalText;
         input.value = '';
     }
 }

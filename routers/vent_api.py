@@ -7,6 +7,7 @@ import traceback
 router = APIRouter(prefix="/api/ventilation", tags=["Вентиляция"])
 
 class LocalResistance(BaseModel):
+    type: str | None = None
     name: str
     qty: int
     zeta: float

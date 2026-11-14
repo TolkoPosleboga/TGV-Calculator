@@ -182,7 +182,7 @@ def calculate_recuperation(L: float, t_inside: float, t_outside: float, efficien
     energy_saved_kwh = q_saved_kw * hours
     money_saved = energy_saved_kwh * electricity_tariff
     frost_warning = "При температуре ниже -15°C роторный/пластинчатый рекуператор может обмерзать. Требуется байпас или предварительный подогрев." if (
-                t_outside < -15 and efficiency_pct > 60) else ""
+            t_outside < -15 and efficiency_pct > 60) else ""
     return {"q_saved_kw": round(q_saved_kw, 2), "energy_saved_kwh": round(energy_saved_kwh, 0),
             "money_saved_rub": round(money_saved, 0), "frost_warning": frost_warning}
 
@@ -276,8 +276,11 @@ def calculate_acoustics(fan_noise_db: int, sections: List[Dict], distance_m: flo
     total_bends = 0
     for sec in sections:
         for res in sec.get("resistances", []):
-            if "Отвод" in res.get("name", ""):
+            res_type = str(res.get("type", "")).lower()
+            res_name = str(res.get("name", "")).lower()
+            if "bend" in res_type or "tee" in res_type or "отвод" in res_name or "колено" in res_name or "тройник" in res_name:
                 total_bends += res.get("qty", 1)
+
     attenuation_bends = total_bends * 3.0
 
     spatial_attenuation = 20 * math.log10(distance_m) + 8 if distance_m > 0 else 0

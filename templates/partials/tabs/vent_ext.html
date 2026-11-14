@@ -41,9 +41,35 @@
         <div class="results-dashboard" id="humidity-dashboard"></div>
     </div>
 
-    <div class="section-title">Подбор водяного калорифера (СП 60.13330)</div>
-    <p style="font-size: 13px; color: #64748b;">Расчет расхода воды и гидравлических потерь. (В разработке)</p>
+    <!-- БЛОК КАЛОРИФЕРА -->
+    <div class="section-title" style="margin-top: 25px;">
+        <span>Подбор водяного калорифера (СП 60.13330)</span>
+    </div>
+    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Расчет тепловой мощности и гидравлики водяного нагревателя. <span style="color:#0284c7; font-weight:600;">Данные подтягиваются автоматически, но доступны для редактирования.</span></p>
+    <div class="form-grid">
+        <div class="form-group"><label>Расход воздуха L (м³/ч)</label><input type="number" step="10" id="wh_l" value="1000"></div>
+        <div class="form-group"><label>t воздуха на входе (°C)</label><input type="number" step="0.1" id="wh_t_in" value="-20"></div>
+        <div class="form-group"><label>t воздуха на выходе (°C)</label><input type="number" step="0.1" id="wh_t_out" value="16"></div>
+        <div class="form-group"><label>t подачи воды (°C)</label><input type="number" step="1" id="wh_tw_in" value="90"></div>
+        <div class="form-group"><label>t обратки воды (°C)</label><input type="number" step="1" id="wh_tw_out" value="70"></div>
+    </div>
+    <div id="water-heater-results" style="display: none; margin-top: 20px; margin-bottom: 20px;">
+        <div class="results-dashboard" id="water-heater-dashboard"></div>
+    </div>
+    <details class="calc-details"><summary>Показать методику расчёта калорифера</summary><div id="wh-methodology"></div></details>
 
-    <div class="section-title" style="margin-top: 25px;">Увязка сети и подбор диафрагм</div>
-    <p style="font-size: 13px; color: #64748b;">Балансировка ответвлений вентиляционной сети. (В разработке)</p>
+    <!-- БЛОК ДИАФРАГМЫ -->
+    <div class="section-title" style="margin-top: 25px;">
+        <span>Увязка сети и подбор диафрагм</span>
+    </div>
+    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Подбор шайбы (диафрагмы) для гашения избыточного давления на ответвлении. <span style="color:#0284c7; font-weight:600;">Данные подтягиваются из главного расчета.</span></p>
+    <div class="form-grid">
+        <div class="form-group"><label>Избыточное давление (Па)</label><input type="number" step="10" id="dp_dp" value="50"></div>
+        <div class="form-group"><label>Диаметр воздуховода (мм)</label><input type="number" step="10" id="dp_d" value="200"></div>
+        <div class="form-group"><label>Расход воздуха (м³/ч)</label><input type="number" step="10" id="dp_l" value="500"></div>
+    </div>
+    <div id="diaphragm-results" style="display: none; margin-top: 20px; margin-bottom: 20px;">
+        <div class="results-dashboard" id="diaphragm-dashboard"></div>
+    </div>
+    <details class="calc-details"><summary>Показать методику расчёта диафрагмы</summary><div id="dp-methodology"></div></details>
 </div>

@@ -294,3 +294,14 @@ td { padding: 10px; border-bottom: 1px solid #e2e8f0; }
 .btn-drawer-item:hover { background: #f8fafc; border-color: #cbd5e1; }
 .danger-text { color: #dc2626 !important; border-color: #fecaca !important; }
 .danger-text:hover { background: #fef2f2 !important; }
+/* --- ЗОНА ЗАХВАТА МЫШИ ДЛЯ ШТОРКИ --- */
+#drawer-hover-zone {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 15px;
+    height: 100vh;
+    z-index: 1002;
+    background: transparent;
+    cursor: pointer;
+}
