@@ -6,7 +6,8 @@ function syncAcFromVent() {
     const v_heat = parseFloat(document.getElementById('v_heat')?.value) || 0;
 
     if (v_length > 0 && v_width > 0) {
-        document.getElementById('ac_area').value = (v_length * v_width).toFixed(1);
+        // Округляем до 2 знаков после запятой
+        document.getElementById('ac_area').value = (v_length * v_width).toFixed(2);
     }
     if (v_height > 0) {
         document.getElementById('ac_height').value = v_height;
@@ -33,7 +34,7 @@ async function calcAc(isAuto = false) {
             if (!isAutoCalc) alert(`Заполните поле: ${name}`);
             return null;
         }
-        const val = parseFloat(el.value);
+        const val = parseFloat(el.value.replace(',', '.'));
         if (isNaN(val)) {
             if (!isAutoCalc) alert(`Поле "${name}" должно быть числом.`);
             return null;
