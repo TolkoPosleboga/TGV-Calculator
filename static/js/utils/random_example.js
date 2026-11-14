@@ -1,121 +1,120 @@
 function fillRandomExample() {
+    const randomBetween = (min, max) => Math.random() * (max - min) + min;
     const randomPick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-    const examples = {
-        'v_length': [3, 4, 5, 6, 8, 10, 12],
-        'v_width': [2, 3, 4, 5, 6, 8],
-        'v_height': [2.5, 2.7, 3, 3.2, 3.5, 4],
-        'v_people': [0, 2, 5, 10, 15, 20, 30, 50],
-        'v_heat': [0.1, 0.5, 1, 2, 3, 5, 10],
-        'v_moisture': [500, 1000, 1500, 2000, 3000, 5000],
-        'v_hazard': [0.5, 1, 2.5, 5, 10, 20],
-        'v_mpc': [10, 20, 50, 100],
-        'v_t_in': [16, 18, 20, 21, 22, 23, 24],
-        'v_recup_eff': [0, 30, 50, 60, 75, 80],
-        'v_tariff': [4.5, 5.0, 5.5, 6.0, 6.5],
-        'v_season_days': [150, 180, 210, 240],
-        'v_distance': [1, 1.5, 2, 3, 5],
-
-        'h_length': [3, 4, 5, 6, 8, 10, 12],
-        'h_width': [2, 3, 4, 5, 6, 8],
-        'h_height': [2.5, 2.7, 3, 3.2, 3.5, 4],
-        'h_wall_area': [20, 30, 40, 50, 60, 100, 150],
-        'h_wall_thick': [0.25, 0.38, 0.51, 0.64],
-        'h_insul_thick': [0, 0.05, 0.1, 0.15, 0.2],
-        'h_win_area': [2, 4, 6, 8, 12],
-        'h_roof_area': [20, 30, 50, 100],
-        'h_roof_insul': [0, 0.1, 0.2, 0.3, 0.4],
-        'h_floor_area': [20, 30, 50, 100],
-        'h_t_supply': [70, 80, 90, 95],
-        'h_t_return': [50, 60, 70],
-        'h_pipe_velocity': [0.4, 0.5, 0.6, 0.7, 0.8, 1.0],
-        'h_uf_area': [0, 10, 20, 30],
-
-        'ac_area': [15, 20, 30, 50, 100, 200],
-        'ac_height': [2.5, 3, 3.5, 4, 6],
-        'ac_people': [0, 1, 2, 5, 10, 20, 50],
-        'ac_window_area': [0, 2, 4, 6, 10, 20, 50],
-        'ac_lux': [200, 300, 500],
-        'ac_w_m2': [0.05, 0.07, 0.1],
-        'ac_t_in': [16, 18, 20, 22, 24, 25],
-        'ac_equipment': [0, 0.5, 1, 2, 5, 10, 20, 50],
-
-        'g_boiler_power': [10, 14, 24, 32, 40, 50, 100],
-        'g_length': [3, 4, 5, 6, 8, 10],
-        'g_width': [2, 3, 4, 5, 6, 8],
-        'g_room_height': [2.5, 2.7, 3, 3.2, 3.5],
-        'g_chimney_height': [4, 5, 6, 8, 10],
-        'g_window_area': [0.5, 1.0, 1.5, 2.0],
-        'g_pipe_length': [5, 10, 15, 20, 30],
-        'g_local_zeta': [1.0, 3.0, 5.0, 8.0, 10.0],
-
-        'nv_height': [3.0, 3.3, 5.0, 7.5, 10.0, 15.0],
-        'nv_area': [0.02, 0.04, 0.06, 0.1, 0.25],
-        'nv_zeta': [1.5, 2.0, 2.5, 3.0, 4.0],
-        'se_door_width': [0.8, 0.9, 1.0, 1.2],
-        'se_door_height': [2.0, 2.1, 2.2],
-        'se_num_doors': [1, 2, 3, 4],
-        'pr_door_width': [0.9, 1.0, 1.2, 1.5],
-        'pr_door_height': [2.0, 2.1, 2.2],
-        'pr_num_floors': [1, 2, 3, 5, 9, 12, 16, 25],
-
-        'ext_cond_t_air': [18, 20, 22, 24, 26],
-        'ext_cond_hum': [40, 50, 60, 70, 80],
-        'ext_cond_insul': [0, 10, 20, 30, 50]
+    const globalPayload = {
+        'h_wall_thick': randomPick([0.38, 0.51, 0.64]),
+        'h_insul_thick': randomPick([0.05, 0.1, 0.15]),
+        'h_t_supply': randomPick([80, 90, 95]),
+        'h_t_return': randomPick([50, 60, 70]),
+        'h_pipe_velocity': randomPick([0.5, 0.6, 0.7]),
+        'v_recup_eff': randomPick([0, 50, 65, 80]),
+        'v_tariff': randomPick([5.0, 5.5, 6.0]),
+        'v_season_days': randomPick([180, 210, 240]),
+        'g_boiler_power': randomPick([14, 24, 32, 40]),
+        'g_chimney_height': randomPick([5, 6, 8]),
+        'ext_cond_insul': randomPick([20, 30, 50]),
+        'g_local_zeta': parseFloat(randomBetween(2.0, 8.0).toFixed(1)),
+        'h_wall_mat': randomPick(['brick_hollow', 'brick_solid', 'aerated_d400', 'aerated_d600']),
+        'h_insul_mat': randomPick(['minwool', 'penoplex']),
+        'h_roof_insul_mat': randomPick(['minwool', 'penoplex']),
+        'h_win_type': randomPick(['double_chamber', 'triple_chamber']),
+        'h_connection_type': randomPick(['side', 'diagonal', 'bottom']),
+        'h_uf_spacing': randomPick(['100', '150', '200']),
+        'g_chamber': randomPick(['closed', 'open'])
     };
 
-    const selects = {
-        'v_system_type': ['supply', 'exhaust', 'both'],
-        'v_room_type': ['living', 'office', 'kitchen', 'bathroom', 'corridor', 'stairwell', 'server_room', 'smoking', 'industrial_light', 'industrial_heavy', 'sport'],
-        'v_duct_shape': ['round', 'rect', 'oval'],
-        'v_duct_material': ['steel_galv', 'steel_black', 'plastic', 'aluminum_flex', 'concrete', 'brick'],
+    appFloors.forEach(floor => {
+        if (floor.rooms) {
+            floor.rooms.forEach(room => {
+                if (!room.data) room.data = {};
+                Object.assign(room.data, globalPayload);
 
-        'h_room_type': ['living', 'office', 'kitchen', 'bathroom', 'corridor', 'stairwell', 'server_room', 'smoking', 'industrial_light', 'industrial_heavy', 'sport'],
-        'h_wall_mat': ['brick_hollow', 'brick_solid', 'aerated_d400', 'aerated_d600', 'wood'],
-        'h_insul_mat': ['minwool', 'penoplex', 'none'],
-        'h_win_type': ['double_chamber', 'single_chamber', 'triple_chamber'],
-        'h_connection_type': ['side', 'diagonal', 'bottom'],
-        'h_uf_spacing': ['100', '150', '200', '250', '300'],
+                let type = room.data.v_room_type;
+                if (!type) {
+                    type = randomPick(['living', 'office']);
+                    room.data.v_room_type = type;
+                    room.data.h_room_type = type;
+                    room.data.ac_room_type = type;
+                }
 
-        'ac_room_type': ['living', 'office', 'kitchen', 'corridor', 'server_room', 'smoking', 'industrial_light', 'industrial_heavy', 'sport'],
-        'ac_win_type': ['double_chamber', 'single_chamber', 'triple_chamber'],
+                let w = parseFloat(room.data.v_width) || parseFloat(room.width) || 4;
+                let l = parseFloat(room.data.v_length) || parseFloat(room.length) || 6;
+                let h = parseFloat(room.data.v_height) || 3.0;
 
-        'g_chamber': ['closed', 'open']
-    };
+                let ppl, heat, moist, hazard, mpc;
 
-    for (let id in examples) {
-        const el = document.getElementById(id);
-        if (el) {
-            el.value = randomPick(examples[id]);
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-    }
+                if (type === 'living') {
+                    ppl = Math.floor(randomBetween(1, 4)); heat = randomBetween(0.1, 0.5); moist = randomBetween(200, 600); hazard = 0; mpc = 20;
+                } else if (type === 'kitchen') {
+                    ppl = Math.floor(randomBetween(1, 3)); heat = randomBetween(0.5, 1.5); moist = randomBetween(1000, 2000); hazard = 0; mpc = 20;
+                } else if (type === 'bathroom') {
+                    ppl = 0; heat = randomBetween(0.0, 0.2); moist = randomBetween(1000, 1500); hazard = 0; mpc = 20;
+                } else if (type === 'corridor' || type === 'stairwell') {
+                    ppl = 0; heat = 0.0; moist = 0; hazard = 0; mpc = 20;
+                } else if (type === 'office' || type === 'server_room' || type === 'smoking') {
+                    ppl = Math.floor(randomBetween(2, 15)); heat = randomBetween(0.5, 3.0); moist = randomBetween(0, 500); hazard = parseFloat(randomBetween(0.1, 2.0).toFixed(1)); mpc = randomPick([10, 20, 50]);
+                } else if (type === 'industrial_light') {
+                    ppl = Math.floor(randomBetween(5, 20)); heat = randomBetween(2.0, 10.0); moist = randomBetween(500, 2000); hazard = parseFloat(randomBetween(2.0, 10.0).toFixed(1)); mpc = randomPick([5, 10, 20]);
+                } else {
+                    ppl = Math.floor(randomBetween(10, 40)); heat = randomBetween(5.0, 30.0); moist = randomBetween(1000, 5000); hazard = parseFloat(randomBetween(10.0, 50.0).toFixed(1)); mpc = randomPick([1, 5, 10]);
+                }
 
-    for (let id in selects) {
-        const el = document.getElementById(id);
-        if (el) {
-            el.value = randomPick(selects[id]);
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-    }
+                room.data.v_people = ppl;
+                room.data.v_heat = parseFloat(heat.toFixed(1));
+                room.data.v_moisture = Math.round(moist);
+                room.data.v_hazard = hazard;
+                room.data.v_mpc = mpc;
+                room.data.v_t_in = type === 'bathroom' ? 24 : 20;
+                room.data.v_distance = parseFloat(randomBetween(1.0, 3.0).toFixed(1));
+                room.data.v_water_in = 90;
+                room.data.v_water_out = 70;
 
-    ['v_is_corner', 'h_is_corner', 'ac_is_corner', 'g_has_stove', 'g_has_heater'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.checked = Math.random() > 0.5;
-            el.dispatchEvent(new Event('change', { bubbles: true }));
+                if (['living', 'kitchen', 'bathroom', 'corridor', 'stairwell'].includes(type)) {
+                    room.data.v_system_type = 'exhaust';
+                } else {
+                    room.data.v_system_type = randomPick(['supply', 'exhaust', 'both']);
+                }
+
+                const wallArea = 2 * (w + l) * h;
+                const winArea = parseFloat((w * l * 0.15).toFixed(1));
+
+                room.data.h_width = w;
+                room.data.h_length = l;
+                room.data.h_wall_area = parseFloat((wallArea - winArea).toFixed(1));
+                room.data.h_win_area = winArea;
+                room.data.h_floor_area = parseFloat((w * l).toFixed(1));
+                room.data.h_roof_area = parseFloat((w * l).toFixed(1));
+
+                room.data.ac_area = parseFloat((w * l).toFixed(1));
+                room.data.ac_people = ppl;
+                room.data.ac_window_area = winArea;
+
+                room.data.g_width = w;
+                room.data.g_length = l;
+
+                room.data.g_has_stove = type === 'kitchen' ? true : (Math.random() > 0.9);
+                room.data.g_has_heater = type === 'bathroom' ? (Math.random() > 0.5) : false;
+            });
         }
     });
 
-    const citySelects = ['v_city', 'h_city', 'g_city', 'ac_city', 'bim_city'];
-    citySelects.forEach(id => {
-        const el = document.getElementById(id);
-        if (el && el.options.length > 1) {
-            const randomIndex = Math.floor(Math.random() * (el.options.length - 1)) + 1;
-            el.selectedIndex = randomIndex;
-            el.dispatchEvent(new Event('change', { bubbles: true }));
+    if (typeof saveRoomsToStorage === 'function') saveRoomsToStorage();
+    if (typeof loadActiveRoomData === 'function') loadActiveRoomData();
+
+    const activeTab = document.querySelector('.tab-content.active');
+    if (activeTab) {
+        if (activeTab.id === 'tab-vent' && typeof debouncedCalcVent === 'function') debouncedCalcVent();
+        if (activeTab.id === 'tab-heat' && typeof debouncedCalcHeat === 'function') debouncedCalcHeat();
+        if (activeTab.id === 'tab-ac' && typeof debouncedCalcAc === 'function') debouncedCalcAc();
+        if (activeTab.id === 'tab-gas' && typeof debouncedCalcGas === 'function') debouncedCalcGas();
+        if (activeTab.id === 'tab-vent-ext') {
+            if (typeof debouncedCalcCondensation === 'function') debouncedCalcCondensation();
+            if (typeof debouncedCalcHumidity === 'function') debouncedCalcHumidity();
         }
-    });
+    }
+
+    if (typeof renderPlan === 'function' && document.getElementById('plan-view').classList.contains('active')) {
+        renderPlan();
+    }
 }
