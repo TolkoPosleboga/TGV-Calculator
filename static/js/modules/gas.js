@@ -94,8 +94,24 @@ async function calcGas(isAuto = false) {
         const safetyGrid = document.getElementById('g-safety-grid');
         if (res.safety_items && res.safety_items.length > 0) {
             safetyCard.style.display = 'block';
-            safetyGrid.innerHTML = res.safety_items.map(s => `<div class="sol-card"><div class="sol-title">${s.model}</div><div class="sol-brand">${s.brand} | ${s.type}</div><div class="sol-price">${s.price_rub.toLocaleString('ru-RU')} ₽</div><a href="${s.url}" target="_blank" class="sol-link">Купить</a></div>`).join('');
-        } else { safetyCard.style.display = 'none'; }
+
+            // Ищем самую выгодную позицию
+            const minPrice = Math.min(...res.safety_items.map(s => s.price_rub));
+
+            safetyGrid.innerHTML = res.safety_items.map(s => {
+                const isBest = s.price_rub === minPrice;
+                return `
+                <div class="sol-card ${isBest ? 'best-choice' : ''}">
+                    ${isBest ? '<div class="best-badge">Выгодно</div>' : ''}
+                    <div class="sol-title">${s.model}</div>
+                    <div class="sol-brand">${s.brand} | ${s.type}</div>
+                    <div class="sol-price">${s.price_rub.toLocaleString('ru-RU')} ₽</div>
+                    <a href="${s.url}" target="_blank" class="sol-link">Купить</a>
+                </div>`;
+            }).join('');
+        } else {
+            safetyCard.style.display = 'none';
+        }
 
         const methodologyContainer = document.getElementById('g-methodology');
         methodologyContainer.innerHTML = `
@@ -157,10 +173,6 @@ async function calcGas(isAuto = false) {
 
         document.getElementById('g-report').textContent = `============================================================\nОТЧЁТ ПО ГАЗОСНАБЖЕНИЮ\n============================================================\nГород: ${city.name}\nОператор: ${city.gas_operator}\nТелефон: ${city.gas_phone}\n\nРАСХОД ГАЗА:\nКотёл: ${res.v_boiler} м³/ч\nОбщий расход: ${res.v_total} м³/ч\n\nГИДРАВЛИКА:\nТруба: ${res.pipe}\nСкорость газа: ${res.velocity} м/с\nПотери давления: ${res.p_total} Па\n\nВЕНТИЛЯЦИЯ И ДЫМОХОД:\nТип камеры: ${data.combustion_chamber === 'open' ? 'Открытая' : 'Закрытая'}\nДиаметр дымохода: ${res.d_chimney_mm > 0 ? res.d_chimney_mm + ' мм' : 'Коаксиальный'}\nВытяжка: ${res.v_exhaust} м³/ч\nПриток: ${res.v_supply} м³/ч`.trim();
 
-        const resContainer = document.getElementById('gas-results');
-        if (resContainer) {
-            resContainer.scrollIntoView({ behavior: 'smooth' });
-        }
     } catch (e) {
         if (!isAutoCalc) alert(e.message);
         else console.error(e.message);

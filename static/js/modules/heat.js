@@ -133,6 +133,12 @@ async function calcHeat(isAuto = false) {
             ${ufHtml}
         `;
 
+        // --- ВЫЗОВ ОТРИСОВКИ ГРАФИКА ---
+        if (typeof renderHeatChart === 'function') {
+            renderHeatChart(res.q_wall_w, res.q_window_w, res.q_roof_w, res.q_floor_w);
+        }
+        // -------------------------------
+
         let compMethodology = (gsop > 0 && comp) ? `
             <div class="formula-block" style="background: #eff6ff; border-left-color: #2563eb;">
                 <b>Проверка энергоэффективности:</b><br>
@@ -283,7 +289,7 @@ function renderHeatCatalog() {
 
             grid.innerHTML += `
                 <div class="sol-card ${isBest ? 'best-choice' : ''}">
-                    ${isBest ? '<div class="best-badge">Выгодный выбор</div>' : ''}
+                    ${isBest ? '<div class="best-badge">Выгодно</div>' : ''}
                     ${industrialBadge}
                     <div class="sol-title">${s.model}</div>
                     <div class="sol-brand">${s.brand} | ${s.type}</div>

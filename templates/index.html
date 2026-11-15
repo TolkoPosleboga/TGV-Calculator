@@ -4,17 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Инженерный калькулятор</title>
+
+    <!-- Шрифты -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Основные стили -->
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/industrial.css">
 
+    <!-- Стили новых компонентов -->
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/modal.css">
+    <link rel="stylesheet" href="/static/css/pro_ux.css">
+    <link rel="stylesheet" href="/static/css/analytics.css">
+
+    <!-- KaTeX для формул -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+    <!-- Chart.js для графиков -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 <div class="container">
     {% include 'partials/home.html' %}
     {% include 'partials/express.html' %}
+    {% include 'partials/analytics_view.html' %}
     {% include 'partials/plan_view.html' %}
     {% include 'partials/balance_view.html' %}
     {% include 'partials/bim.html' %}
@@ -45,13 +63,20 @@
 <script src="/static/js/modules/import_manager.js"></script>
 <script src="/static/js/modules/export.js"></script>
 
-<!-- УТИЛИТЫ -->
+<!-- АНАЛИТИКА (разделенная логика) -->
+<script src="/static/js/modules/analytics_render.js"></script>
+<script src="/static/js/modules/analytics_data.js"></script>
+
+<!-- УТИЛИТЫ И UX -->
 <script src="/static/js/utils/corner_room.js"></script>
 <script src="/static/js/utils/zeta_library.js"></script>
 <script src="/static/js/utils/enthalpy_calc.js"></script>
 <script src="/static/js/utils/city_search.js"></script>
 <script src="/static/js/utils/projects.js"></script>
 <script src="/static/js/utils/random_example.js"></script>
+<script src="/static/js/modules/dashboard.js"></script>
+<script src="/static/js/modules/spec_logic.js"></script>
+<script src="/static/js/utils/pro_ux.js"></script>
 
 </body>
 </html>

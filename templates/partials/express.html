@@ -1,8 +1,7 @@
 <div id="express-view" class="view">
-    <!-- Невидимая зона для вызова шторки -->
-    <div id="drawer-hover-zone"></div>
+    {% include 'partials/project_header.html' %}
 
-    <!-- Шторка с инструментами -->
+    <div id="drawer-hover-zone"></div>
     <div id="drawer-overlay" class="drawer-overlay" onclick="closeDrawer()"></div>
     <div id="side-drawer" class="side-drawer">
         <div class="drawer-header">
@@ -11,10 +10,9 @@
         </div>
         <div class="drawer-body">
             <div style="margin-bottom: 20px;">
-                <label class="switch-label">
-                    <input type="checkbox" id="syncToggle" checked>
-                    <span class="slider"></span>
-                    Синхронизировать габариты
+                <label class="switch-label" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="syncToggle" checked style="width: 18px; height: 18px; accent-color: var(--accent);">
+                    <span style="font-weight: 600; font-size: 14px; color: var(--text-main);">Синхронизировать габариты</span>
                 </label>
             </div>
 
@@ -24,9 +22,11 @@
             <button onclick="downloadImportTemplate()" class="btn-drawer-item">Скачать шаблон Excel</button>
             <button onclick="shareLink()" class="btn-drawer-item">Поделиться ссылкой</button>
 
-            <div class="drawer-section-title">Переходы</div>
+            <div class="drawer-section-title">Навигация</div>
             <button onclick="switchView('plan'); renderPlan();" class="btn-drawer-item">Планировка</button>
             <button onclick="switchView('balance')" class="btn-drawer-item">Воздушный баланс</button>
+            <!-- НОВАЯ КНОПКА АНАЛИТИКИ -->
+            <button onclick="switchView('analytics'); renderAllCharts();" class="btn-drawer-item" style="color: var(--accent); font-weight: 600;">📊 Графики и аналитика</button>
 
             <div class="drawer-section-title">Действия</div>
             <button onclick="addNewRoom()" class="btn-drawer-item">+ Одна комната</button>
@@ -42,42 +42,36 @@
         </div>
     </div>
 
-    <!-- ПАНЕЛЬ ВЫБОРА ЭТАЖА, КОМНАТЫ И ГОРОДА -->
+    {% include 'partials/dashboard.html' %}
+
     <div style="background: #fff; border: 1px solid var(--border); padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex-wrap: wrap;">
         <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-            <!-- ЭТАЖ -->
             <div style="display: flex; flex-direction: column; gap: 5px; width: 240px;">
-                <label style="font-weight: 700; color: #475569; font-size: 11px; text-transform: uppercase;">Этаж:</label>
+                <label style="font-weight: 700; color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Этаж:</label>
                 <div style="display: flex; gap: 5px;">
-                    <select id="express-floor-selector" onchange="switchFloorFromExpress(this.value)" style="padding: 8px; font-size: 14px; font-weight: 600; color: #0284c7; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px; width: 100%;"></select>
-                    <button class="btn-toolbar" style="background: #3b82f6; color: white; padding: 8px 12px; font-weight: bold; border: none; border-radius: 8px; white-space: nowrap; cursor: pointer;" onclick="copyCurrentFloorToNew()" title="Создать новый этаж (скопирует текущий)">+ Этаж</button>
-                    <button class="btn-toolbar" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 8px 12px; font-weight: bold; border-radius: 8px; white-space: nowrap; cursor: pointer;" onclick="deleteFloor(activeFloorId)" title="Удалить текущий этаж">✖</button>
+                    <select id="express-floor-selector" onchange="switchFloorFromExpress(this.value)" style="padding: 8px; font-size: 14px; font-weight: 600; color: var(--accent); background: var(--accent-light); border: 1px solid var(--border); border-radius: 8px; width: 100%;"></select>
+                    <button class="btn-toolbar" style="background: var(--accent); color: white; padding: 8px 12px; font-weight: bold; border: none; border-radius: 8px; white-space: nowrap; cursor: pointer;" onclick="copyCurrentFloorToNew()" title="Создать новый этаж (скопирует текущий)">+ Этаж</button>
+                    <button class="btn-toolbar" style="background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); padding: 8px 12px; font-weight: bold; border-radius: 8px; white-space: nowrap; cursor: pointer;" onclick="deleteFloor(activeFloorId)" title="Удалить текущий этаж">✖</button>
                 </div>
             </div>
-
-            <!-- ПОМЕЩЕНИЕ -->
             <div style="display: flex; flex-direction: column; gap: 5px; width: 220px;">
-                <label style="font-weight: 700; color: #475569; font-size: 11px; text-transform: uppercase;">Помещение:</label>
-                <select id="room-selector" onchange="switchRoom(this.value)" style="padding: 8px; font-size: 14px; font-weight: 600; color: var(--primary); background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; width: 100%;"></select>
+                <label style="font-weight: 700; color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Помещение:</label>
+                <select id="room-selector" onchange="switchRoom(this.value)" style="padding: 8px; font-size: 14px; font-weight: 600; color: var(--accent); background: var(--accent-light); border: 1px solid var(--border); border-radius: 8px; width: 100%;"></select>
             </div>
-
-            <!-- ГОРОД (ГЛОБАЛЬНЫЙ) -->
             <div style="display: flex; flex-direction: column; gap: 5px; width: 250px;">
-                <label style="font-weight: 700; color: #475569; font-size: 11px; text-transform: uppercase;">Город строительства:</label>
-                <select id="global_city" onchange="onGlobalCityChange(this.value)" style="padding: 8px; font-size: 14px; font-weight: 600; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; width: 100%;"></select>
+                <label style="font-weight: 700; color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Город строительства:</label>
+                <select id="global_city" onchange="onGlobalCityChange(this.value)" style="padding: 8px; font-size: 14px; font-weight: 600; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; width: 100%;"></select>
             </div>
         </div>
-
-        <!-- КНОПКИ УПРАВЛЕНИЯ КОМНАТАМИ -->
         <div style="display: flex; gap: 10px; align-items: center;">
-            <button class="btn-toolbar" style="background: var(--success); color: white; border: none; padding: 10px 15px; font-weight: 600; border-radius: 8px; white-space: nowrap; cursor: pointer;" onclick="addApartmentTemplate()">+ Квартира</button>
-            <button class="btn-toolbar" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 10px 15px; font-weight: 600; border-radius: 8px; white-space: nowrap; cursor: pointer;" onclick="deleteCurrentRoom()">Удалить комнату</button>
+            <button class="btn-toolbar" style="background: var(--success); color: white; border: none; padding: 10px 15px; font-weight: 600; border-radius: 8px; white-space: nowrap; cursor: pointer; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);" onclick="addApartmentTemplate()">+ Квартира</button>
+            <button class="btn-toolbar" style="background: var(--danger-bg); color: var(--danger); border: 1px solid #fecaca; padding: 10px 15px; font-weight: 600; border-radius: 8px; white-space: nowrap; cursor: pointer;" onclick="deleteCurrentRoom()">Удалить комнату</button>
         </div>
     </div>
 
     <div class="card">
-        <div style="background: #f8fafc; padding: 12px 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
-            <h3 id="current-room-title" style="margin: 0; font-size: 18px; color: #0f172a;">Помещение: ...</h3>
+        <div style="background: var(--bg-input); padding: 12px 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px;">
+            <h3 id="current-room-title" style="margin: 0; font-size: 18px; color: var(--text-main);">Помещение: ...</h3>
         </div>
 
         <div class="tabs">
@@ -97,3 +91,5 @@
         {% include 'partials/tabs/smoke.html' %}
     </div>
 </div>
+
+{% include 'partials/spec_modal_plus.html' %}

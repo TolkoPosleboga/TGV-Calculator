@@ -1,0 +1,11 @@
+:root {
+    --efx-bg-main: #0d1f1a; /* Глубокий темный фон */
+    --efx-bg-card: #142e26; /* Фон карточек */
+    --efx-accent: #00E0A1; /* Бирюзовый акцент */
+    --efx-accent-hover: #00c78e;
+    --efx-text-main: #FFFFFF;
+    --efx-text-muted: #8ba8a0;
+    --efx-border: #1f4a3d; /* Границы карточек */
+    --efx-font-main: 'Inter', sans-serif;
+    --efx-font-mono: 'Roboto Mono', monospace;
+}

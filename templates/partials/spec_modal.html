@@ -1,0 +1,22 @@
+<div id="spec-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Сводная спецификация по объекту</h2>
+            <button class="btn-close-modal" onclick="closeSpecModal()">✖</button>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--text-muted); margin-bottom: 20px;">Здесь собраны все сохраненные расчеты по всем помещениям. Проверьте комплектацию перед заказом.</p>
+
+            <div id="spec-content" style="min-height: 200px;">
+                <!-- Сюда JS будет вставлять таблицу -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="spec-total">
+                <span>Итого по объекту:</span>
+                <strong id="spec-total-price">0 ₽</strong>
+            </div>
+            <button class="btn" style="width: auto; margin: 0;" onclick="closeSpecModal()">Закрыть</button>
+        </div>
+    </div>
+</div>

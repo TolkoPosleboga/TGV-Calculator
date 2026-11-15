@@ -1,0 +1,52 @@
+<div id="analytics-view" class="view">
+    <div class="view-header" style="justify-content: space-between;">
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <button class="btn-back" onclick="switchView('express')">← Назад к расчетам</button>
+            <h2>Аналитика и графики</h2>
+        </div>
+
+        <!-- ПОДКЛЮЧАЕМ НОВЫЙ КОНТРОЛЛЕР -->
+        {% include 'partials/analytics_control.html' %}
+    </div>
+
+    <div class="card" style="background: var(--bg-main); border: none; box-shadow: none; padding: 0;">
+        <div class="analytics-grid">
+            <!-- ВЕНТИЛЯЦИЯ -->
+            <div class="chart-card">
+                <div class="chart-kpi">
+                    <span class="kpi-label">Требуемый воздухообмен</span>
+                    <span class="kpi-value" id="kpi-vent">0 <small>м³/ч</small></span>
+                    <span class="kpi-sub" id="kpi-vent-factor">—</span>
+                </div>
+                <div class="chart-container"><canvas id="chart-vent"></canvas></div>
+            </div>
+            <!-- ОТОПЛЕНИЕ -->
+            <div class="chart-card">
+                <div class="chart-kpi">
+                    <span class="kpi-label">Требуемая мощность котла</span>
+                    <span class="kpi-value" id="kpi-heat">0.0 <small>кВт</small></span>
+                    <span class="kpi-sub" id="kpi-heat-loss">Общие потери: 0 Вт</span>
+                </div>
+                <div class="chart-container"><canvas id="chart-heat"></canvas></div>
+            </div>
+            <!-- КОНДИЦИОНИРОВАНИЕ -->
+            <div class="chart-card">
+                <div class="chart-kpi">
+                    <span class="kpi-label">Пиковая нагрузка на охлаждение</span>
+                    <span class="kpi-value" id="kpi-ac">0.00 <small>кВт</small></span>
+                    <span class="kpi-sub" id="kpi-ac-air">L_вент: 0 м³/ч</span>
+                </div>
+                <div class="chart-container"><canvas id="chart-ac"></canvas></div>
+            </div>
+            <!-- ГАЗ -->
+            <div class="chart-card">
+                <div class="chart-kpi">
+                    <span class="kpi-label">Общий расход газа</span>
+                    <span class="kpi-value" id="kpi-gas">0.00 <small>м³/ч</small></span>
+                    <span class="kpi-sub" id="kpi-gas-pipe">Труба: —</span>
+                </div>
+                <div class="chart-container"><canvas id="chart-gas"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>

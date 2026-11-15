@@ -1,0 +1,34 @@
+<div id="project-dashboard" class="dashboard-grid" style="display: none;">
+    <div class="dash-card">
+        <div class="dash-icon">📐</div>
+        <div class="dash-info">
+            <span class="dash-label">Общая площадь</span>
+            <span class="dash-value" id="dash-total-area">0.0 <small>м²</small></span>
+        </div>
+    </div>
+
+    <div class="dash-card">
+        <div class="dash-icon">🚪</div>
+        <div class="dash-info">
+            <span class="dash-label">Помещений</span>
+            <span class="dash-value" id="dash-total-rooms">0 <small>шт</small></span>
+        </div>
+    </div>
+
+    <div class="dash-card">
+        <div class="dash-icon">🌀</div>
+        <div class="dash-info">
+            <span class="dash-label">Макс. воздухообмен</span>
+            <span class="dash-value" id="dash-total-air">0 <small>м³/ч</small></span>
+        </div>
+    </div>
+
+    <!-- НОВАЯ КНОПКА СПЕЦИФИКАЦИИ -->
+    <div class="dash-card" style="cursor: pointer; border-color: var(--accent); background: var(--accent-light) !important;" onclick="openSpecModal()">
+        <div class="dash-icon" style="background: #ffffff;">📋</div>
+        <div class="dash-info">
+            <span class="dash-label" style="color: var(--accent);">Документация</span>
+            <span class="dash-value" style="font-size: 16px; font-family: var(--font-main);">Спецификация</span>
+        </div>
+    </div>
+</div>

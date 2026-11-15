@@ -315,7 +315,7 @@ async function calcVent(isAuto = false) {
             let frostWarn = r.recuperation.frost_warning ? `<div class="warn-box" style="margin-top:10px;">${r.recuperation.frost_warning}</div>` : '';
             recupMethodology = `
                 <div class="formula-block" style="background: #f0fdf4; border-left-color: #22c55e;">
-                    <b>7. Рекуперация:</b><br>
+                    <b>8. Рекуперация:</b><br>
                     $$ Q_{\\text{экон}} = \\frac{L \\times \\rho \\times c \\times \\Delta t_{\\text{нар}} \\times \\text{КПД}}{3600} $$
                     $$ Q_{\\text{экон}} = \\frac{${r.air_exchange.L_max_m3h} \\times 1.2 \\times 1.005 \\times ${r.air_exchange.delta_t} \\times ${(data.recup_efficiency/100).toFixed(2)}}{3600} = \\mathbf{${r.recuperation.q_saved_kw} \\text{ кВт}} $$
                     Энергия за сезон = <b>${r.recuperation.energy_saved_kwh} кВт*ч</b><br>
@@ -358,7 +358,7 @@ async function calcVent(isAuto = false) {
 
             acousticsMethodology = `
                 <div class="formula-block" style="background: #f8fafc; border-left-color: #64748b;">
-                    <b>8. Акустический расчет (СП 51.13330.2011):</b><br>
+                    <b>9. Акустический расчет (СП 51.13330.2011):</b><br>
                     1. Шум вентилятора: <b>${ac.fan_noise} дБА</b><br>
                     2. Затухание в прямых участках (L = ${totalLength.toFixed(1)} м): <b>${ac.attenuation_duct} дБА</b><br>
                     3. Затухание на отводах (${bendsCount} шт): <b>${ac.attenuation_bends} дБА</b><br>
@@ -371,6 +371,7 @@ async function calcVent(isAuto = false) {
             `;
         }
 
+        // ВОССТАНОВЛЕННЫЕ И ДОПОЛНЕННЫЕ ПУНКТЫ МЕТОДИЧКИ
         const methodologyContainer = document.getElementById('v-methodology');
         methodologyContainer.innerHTML = `
             <div class="formula-block">
@@ -382,8 +383,15 @@ async function calcVent(isAuto = false) {
                 По вредностям: ${r.air_exchange.L_hazard_m3h} м³/ч<br>
                 <b>Итоговый расход: ${r.air_exchange.L_max_m3h} м³/ч</b> (Определяющий фактор: ${r.air_exchange.decisive_factor})
             </div>
-            <div class="formula-block" style="background: #eff6ff; border-left-color: #2563eb;">
-                <b>2. Потери давления по участкам:</b><br>
+
+            <div class="formula-block">
+                <b>2. Подбор сечения 1-го участка:</b><br>
+                $$ F = \\frac{L}{3600 \\times v_{\\text{доп}}} = \\frac{${r.air_exchange.L_max_m3h}}{3600 \\times 5} = ${(r.air_exchange.L_max_m3h / 18000).toFixed(4)} \\text{ м}^2 $$
+                $$ \\text{Принято: } \\mathbf{${ductDisplay} \\text{ мм}} $$
+            </div>
+
+            <div class="formula-block">
+                <b>3. Потери давления по участкам (Дарси-Вейсбах):</b><br>
                 <table style="width: 100%; font-size: 12px; margin-bottom: 10px; margin-top: 10px;">
                     <tr style="background: #e2e8f0;">
                         <th>Участок</th><th>Размер</th><th>Материал (Δ)</th><th>Длина</th><th>Скорость</th><th>Σζ</th><th>Трение</th><th>Местные</th>
@@ -392,9 +400,33 @@ async function calcVent(isAuto = false) {
                 </table>
                 $$ \\Delta P_{\\text{трение}} = \\sum \\left( \\lambda \\times \\frac{L}{d} \\times \\frac{\\rho v^2}{2} \\right) = \\mathbf{${r.pressure_loss.friction_loss_pa} \\text{ Па}} $$
                 $$ \\Delta P_{\\text{мест}} = \\sum \\left( \\zeta \\times \\frac{\\rho v^2}{2} \\right) = \\mathbf{${r.pressure_loss.local_loss_pa} \\text{ Па}} $$
+            </div>
+
+            <div class="formula-block" style="background: #eff6ff; border-left-color: #2563eb;">
+                <b>4. Суммарные потери давления:</b><br>
                 ΔP_оборуд = 230 Па (фильтр + калорифер)<br>
                 $$ \\Delta P_{\\text{общ}} = (\\Delta P_{\\text{тр}} + \\Delta P_{\\text{мест}} + 230) \\times 1.15 = \\mathbf{${r.pressure_loss.total_loss_pa} \\text{ Па}} $$
             </div>
+
+            <div class="formula-block">
+                <b>5. Подбор вентилятора:</b><br>
+                $$ L_{\\text{вент}} = L_{\\text{расч}} \\times 1.10 = ${r.air_exchange.L_max_m3h} \\times 1.10 = \\mathbf{${r.equipment.fan_flow_m3h} \\text{ м}^3/\\text{ч}} $$
+                $$ P_{\\text{вент}} = \\Delta P_{\\text{общ}} = \\mathbf{${r.equipment.fan_pressure_pa} \\text{ Па}} $$
+            </div>
+
+            <div class="formula-block">
+                <b>6. Мощность калорифера:</b><br>
+                $$ Q_{\\text{кал}} = \\frac{L_{\\text{расч}} \\times \\rho \\times c \\times (t_{\\text{вн}} - t_{\\text{нар}})}{3600} $$
+                $$ Q_{\\text{кал}} = \\frac{${r.air_exchange.L_max_m3h} \\times 1.2 \\times 1.005 \\times (${data.t_inside} - (${data.t_outside}))}{3600} = \\mathbf{${r.equipment.heater_power_kw} \\text{ кВт}} $$
+                <span class="norm-ref">СП 60.13330.2020</span>
+            </div>
+
+            <div class="formula-block">
+                <b>7. Расход воды на калорифер (если водяной):</b><br>
+                $$ G = \\frac{3.6 \\times Q}{4.18 \\times (90 - 70)} $$
+                (Рассчитывается в дополнительных расчетах)
+            </div>
+
             ${recupMethodology}
             ${acousticsMethodology}
         `;

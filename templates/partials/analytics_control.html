@@ -1,0 +1,8 @@
+<div style="display: flex; gap: 15px; align-items: center;">
+    <select id="analytics-room-selector" onchange="onAnalyticsRoomChange(this.value)" style="padding: 8px 15px; font-size: 14px; font-weight: 600; color: var(--accent); background: var(--accent-light); border: 1px solid var(--border); border-radius: 8px; min-width: 250px;">
+        <option value="all">🏢 Всё здание (сумма)</option>
+    </select>
+    <button class="btn" id="btn-sync-analytics" style="width: auto; margin: 0; background: #0ea5e9; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);" onclick="syncAnalytics()">
+        Синхронизировать
+    </button>
+</div>

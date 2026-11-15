@@ -3,10 +3,8 @@ function syncAcFromVent() {
     const v_width = parseFloat(document.getElementById('v_width')?.value) || 0;
     const v_height = parseFloat(document.getElementById('v_height')?.value) || 0;
     const v_people = parseInt(document.getElementById('v_people')?.value) || 0;
-    const v_heat = parseFloat(document.getElementById('v_heat')?.value) || 0;
 
     if (v_length > 0 && v_width > 0) {
-        // Округляем до 2 знаков после запятой
         document.getElementById('ac_area').value = (v_length * v_width).toFixed(2);
     }
     if (v_height > 0) {
@@ -102,7 +100,7 @@ async function calcAc(isAuto = false) {
                 <h4>Расчетный воздухообмен <span class="info-icon" data-tooltip="L = max(L_явн, L_полн, L_влага, L_CO2, L_норм)"></span></h4>
                 <div class="value">${res.max_air_exchange} <span class="unit">м³/ч</span></div>
             </div>
-            <div class="result-box" style="background: var(--success-bg); border-color: var(--success-border);">
+            <div class="result-box best">
                 <h4 style="color: var(--success);">Мощность на кондиционирование <span class="info-icon" data-tooltip="Q_конд = Q_полн - Q_вент"></span></h4>
                 <div class="value" style="color: var(--success);">${(res.max_q_cond / 1000).toFixed(2)} <span class="unit">кВт</span></div>
             </div>
@@ -212,14 +210,21 @@ async function calcAc(isAuto = false) {
 
         ["split", "cassette", "vrf", "chiller"].forEach(c => {
             if (!grouped[c]) return;
+
+            // Ищем минимальную цену в категории
+            const minPrice = Math.min(...grouped[c].map(s => s.price_rub));
+
             cat.innerHTML += `<div class="category-header"><h3>${names[c]}</h3></div><div class="solutions-grid" id="grid-ac-${c}"></div>`;
             const grid = document.getElementById(`grid-ac-${c}`);
 
             grouped[c].forEach(s => {
+                const isBest = s.price_rub === minPrice;
                 const isIndustrial = s.segment === 'industrial';
                 const industrialBadge = isIndustrial ? `<div class="industrial-badge">Промышленный</div>` : '';
+
                 grid.innerHTML += `
-                    <div class="sol-card">
+                    <div class="sol-card ${isBest ? 'best-choice' : ''}">
+                        ${isBest ? '<div class="best-badge">Выгодно</div>' : ''}
                         ${industrialBadge}
                         <div class="sol-title">${s.model}</div>
                         <div class="sol-brand">${s.brand} | ${s.type}</div>

@@ -15,6 +15,15 @@ def calculate_gas_system(
         chimney_height: float, pipe_length: float, local_zeta: float,
         window_area: float
 ) -> Dict[str, Any]:
+    # Если нет ни котла, ни плиты, ни колонки — расхода нет
+    if boiler_power_kw <= 0 and not has_stove and not has_water_heater:
+        return {
+            "v_boiler": 0.0, "v_total": 0.0, "meter": "Не требуется", "pipe": "-",
+            "velocity": 0.0, "p_friction": 0.0, "p_local": 0.0, "p_total": 0.0,
+            "velocity_warning": "", "d_chimney_mm": 0.0, "chimney_warning": "",
+            "v_exhaust": 0.0, "v_supply": 0.0, "boiler_room_warnings": [], "safety_items": []
+        }
+
     # 1. Расход газа
     v_boiler = boiler_power_kw / (CALORIFIC_VALUE * BOILER_EFFICIENCY)
     v_stove = 1.2 if has_stove else 0.0
@@ -54,7 +63,7 @@ def calculate_gas_system(
     # 4. Дымоход
     chimney_area = 0
     chimney_warning = ""
-    if combustion_chamber == "open":
+    if combustion_chamber == "open" and v_boiler > 0:
         chimney_area = v_boiler / (3600 * 1.5)
         d_chimney_mm = math.sqrt(4 * chimney_area / math.pi) * 1000
         if d_chimney_mm < 100:
@@ -72,13 +81,13 @@ def calculate_gas_system(
 
     # 6. Проверка требований к котельной
     boiler_room_warnings = []
-    if room_volume < 15.0:
-        boiler_room_warnings.append("Объём помещения менее 15 м³ (СП 62.13330, п. 6.1.18)")
-
-    required_window_area = room_volume * 0.03
-    if window_area < required_window_area:
-        boiler_room_warnings.append(
-            f"Площадь окна меньше нормы (нужно {required_window_area:.2f} м², по факту {window_area} м²)")
+    if boiler_power_kw > 0:
+        if room_volume < 15.0:
+            boiler_room_warnings.append("Объём помещения менее 15 м³ (СП 62.13330, п. 6.1.18)")
+        required_window_area = room_volume * 0.03
+        if window_area < required_window_area:
+            boiler_room_warnings.append(
+                f"Площадь окна меньше нормы (нужно {required_window_area:.2f} м², по факту {window_area} м²)")
 
     # 7. Комплект безопасности
     safety_items = []
@@ -89,19 +98,13 @@ def calculate_gas_system(
         if valve: safety_items.append(valve)
 
     return {
-        "v_boiler": round(v_boiler, 2),
-        "v_total": round(v_total, 2),
-        "meter": selected_meter.model if selected_meter else "Требуется промышленный счётчик",
+        "v_boiler": round(v_boiler, 2), "v_total": round(v_total, 2),
+        "meter": selected_meter.model if selected_meter else "Требуется расчет",
         "pipe": selected_pipe.model if selected_pipe else "Требуется расчет",
-        "velocity": round(velocity, 2),
-        "p_friction": round(p_friction, 1),
-        "p_local": round(p_local, 1),
-        "p_total": round(p_total, 1),
-        "velocity_warning": velocity_warning,
-        "d_chimney_mm": round(d_chimney_mm, 0),
-        "chimney_warning": chimney_warning,
-        "v_exhaust": round(v_exhaust, 1),
-        "v_supply": round(v_supply, 1),
-        "boiler_room_warnings": boiler_room_warnings,
+        "velocity": round(velocity, 2), "p_friction": round(p_friction, 1),
+        "p_local": round(p_local, 1), "p_total": round(p_total, 1),
+        "velocity_warning": velocity_warning, "d_chimney_mm": round(d_chimney_mm, 0),
+        "chimney_warning": chimney_warning, "v_exhaust": round(v_exhaust, 1),
+        "v_supply": round(v_supply, 1), "boiler_room_warnings": boiler_room_warnings,
         "safety_items": [item.model_dump() for item in safety_items]
     }
